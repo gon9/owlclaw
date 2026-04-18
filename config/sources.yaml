@@ -1,0 +1,48 @@
+obsidian_vault: "/Users/gon9a/Library/CloudStorage/GoogleDrive-gon9a.chan@gmail.com/マイドライブ/workspace/obsidian_drive"
+obsidian_subdir: "owlclaw/daily"
+
+digest:
+  max_items: 6
+  lookback_hours: 24
+  language: ja
+  persona: |
+    読者はナレッジワーク（日本のSaaS企業）の社員。
+    関心: AI業界トレンド（モデル / プロダクト / 資金調達 / 研究）、海外組織モデル（FDE等）、SaaS経営示唆。
+    日本の読者向けに要約・翻訳する。固有名詞は原語を残す。
+
+sources:
+  - name: TechCrunch AI
+    url: https://techcrunch.com/category/artificial-intelligence/feed/
+    type: rss
+    enabled: true
+
+  - name: a16z
+    url: https://a16z.com/feed/
+    type: rss
+    enabled: true
+
+  - name: The Pragmatic Engineer
+    url: https://newsletter.pragmaticengineer.com/feed
+    type: rss
+    enabled: true
+
+# 追加ソースの例 (enabled: true にすれば有効化):
+#  - name: OpenAI Blog
+#    url: https://openai.com/news/rss.xml
+#    type: rss
+#    enabled: false
+#
+#  - name: Anthropic News
+#    url: https://www.anthropic.com/news/rss.xml
+#    type: rss
+#    enabled: false
+#
+#  - name: Lenny's Newsletter
+#    url: https://www.lennysnewsletter.com/feed
+#    type: rss
+#    enabled: false
+#
+#  - name: Latent Space Podcast
+#    url: https://api.substack.com/feed/podcast/1084089.rss
+#    type: podcast
+#    enabled: false
