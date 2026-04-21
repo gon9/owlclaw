@@ -1,31 +1,33 @@
 #!/usr/bin/env bash
 # owlclaw: Slack通知スクリプト
-# 使い方: bash slack_notify.sh "送りたいメッセージ本文"
-# メッセージはSlack mrkdwn形式で渡すこと
+# 使い方: bash slack_notify.sh
+# → tmp/slack_draft.txt の内容を Slack に送信する
+# Claudeは Write ツールで tmp/slack_draft.txt に書いてからこのスクリプトを呼ぶこと
 
 set -euo pipefail
 
 WEBHOOK_FILE="/Users/gon9a/workspace/ai_agent/owlclaw/secrets/slack_webhook.txt"
-MESSAGE="${1:-}"
+DRAFT="/Users/gon9a/workspace/ai_agent/owlclaw/tmp/slack_draft.txt"
 
-if [[ -z "$MESSAGE" ]]; then
-  echo "Error: メッセージが空です" >&2
+if [[ ! -f "$DRAFT" ]]; then
+  echo "Error: $DRAFT が存在しません。先に Write ツールで作成してください。" >&2
   exit 1
 fi
 
+MESSAGE=$(cat "$DRAFT")
 WEBHOOK_URL=$(tr -d '[:space:]' < "$WEBHOOK_FILE")
 
-# JSONエスケープ (バックスラッシュ → \\ 、ダブルクォート → \" 、改行 → \n)
-ESCAPED=$(python3 -c "
+# JSONエスケープ
+PAYLOAD=$(python3 -c "
 import sys, json
-msg = sys.stdin.read()
-print(json.dumps(msg)[1:-1])  # strip surrounding quotes
-" <<< "$MESSAGE")
+msg = open('$DRAFT').read()
+print(json.dumps({'text': msg}))
+")
 
 HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
   -X POST \
   -H 'Content-Type: application/json' \
-  -d "{\"text\": \"${ESCAPED}\"}" \
+  -d "$PAYLOAD" \
   "$WEBHOOK_URL")
 
 echo "Slack HTTP status: $HTTP_STATUS"
