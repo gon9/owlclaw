@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Write",
+      "Bash(curl *)",
+      "Bash(python3 *)"
+    ]
+  }
+}

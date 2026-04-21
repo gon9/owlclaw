@@ -11,29 +11,58 @@ digest:
     日本の読者向けに要約・翻訳する。固有名詞は原語を残す。
 
 sources:
+  # --- ニュース / ジャーナリズム ---
   - name: TechCrunch AI
     url: https://techcrunch.com/category/artificial-intelligence/feed/
     type: rss
     enabled: true
 
+  # --- VC / 投資家視点 ---
   - name: a16z
-    url: https://a16z.com/feed/
+    url: https://www.a16z.news/feed  # 旧 a16z.com/feed/ は404。Substack経由
     type: rss
     enabled: true
 
+  # --- AIモデル / 研究 ---
+  - name: OpenAI Blog
+    url: https://openai.com/news/rss.xml
+    type: rss
+    enabled: true
+
+  - name: Hugging Face Blog
+    url: https://huggingface.co/blog/feed.xml
+    type: rss
+    enabled: true
+
+  # --- エンジニア向けニュースレター ---
   - name: The Pragmatic Engineer
     url: https://newsletter.pragmaticengineer.com/feed
     type: rss
     enabled: true
 
-# 追加ソースの例 (enabled: true にすれば有効化):
-#  - name: OpenAI Blog
-#    url: https://openai.com/news/rss.xml
-#    type: rss
-#    enabled: false
-#
+  - name: Latent Space
+    url: https://latent.space/feed
+    type: rss
+    enabled: true  # AI Engineerコミュニティで最も読まれているニュースレターの一つ
+
+  - name: Import AI
+    url: https://importai.substack.com/feed
+    type: rss
+    enabled: true  # Anthropic共同創業者 Jack Clark による週次リサーチ解説
+
+  - name: TLDR AI
+    url: https://tldrnewsletter.substack.com/feed
+    type: rss
+    enabled: true  # 50万人以上が購読するAI日次ダイジェスト
+
+  - name: TheSequence
+    url: https://thesequence.substack.com/feed
+    type: rss
+    enabled: true  # OpenAI/DeepMind等のエンジニアが読むML深掘りニュースレター
+
+# 追加候補 (enabled: true にすれば有効化):
 #  - name: Anthropic News
-#    url: https://www.anthropic.com/news/rss.xml
+#    url: https://www.anthropic.com/news/rss.xml  # 公式RSSなし。コミュニティミラーが必要
 #    type: rss
 #    enabled: false
 #
