@@ -12,7 +12,7 @@ SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 case "${1:-}" in
   pre)
     echo "=== owlclaw: RSSフェッチ開始 ==="
-    python3 "$SCRIPTS_DIR/fetch_rss.py"
+    uv run python "$SCRIPTS_DIR/fetch_rss.py"
     echo "=== 完了: tmp/digest_input.md に保存しました ==="
     ;;
   post)

@@ -29,5 +29,12 @@ DEST_DIR="${VAULT}/docs_obsidian/20_news/owlclaw/daily"
 DEST_FILE="${DEST_DIR}/${DATE}.md"
 
 mkdir -p "$DEST_DIR"
+
+if [[ -f "$DEST_FILE" ]]; then
+  BACKUP="${DEST_FILE%.md}.bak.md"
+  echo "Warning: $DEST_FILE が既に存在します。バックアップ → $BACKUP" >&2
+  cp "$DEST_FILE" "$BACKUP"
+fi
+
 cp "$DRAFT" "$DEST_FILE"
 echo "Obsidian note written: $DEST_FILE"
