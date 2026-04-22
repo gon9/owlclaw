@@ -14,7 +14,6 @@ if [[ ! -f "$DRAFT" ]]; then
   exit 1
 fi
 
-MESSAGE=$(cat "$DRAFT")
 WEBHOOK_URL=$(tr -d '[:space:]' < "$WEBHOOK_FILE")
 
 # JSONエスケープ

@@ -15,6 +15,11 @@ if [[ -z "$DATE" ]]; then
   exit 1
 fi
 
+if [[ ! "$DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+  echo "Error: 日付はYYYY-MM-DD形式で渡してください: $DATE" >&2
+  exit 1
+fi
+
 if [[ ! -f "$DRAFT" ]]; then
   echo "Error: $DRAFT が存在しません。先に Write ツールで作成してください。" >&2
   exit 1
