@@ -109,7 +109,7 @@ def main():
     lines = []
     lines.append(f"# owlclaw digest input — {today}")
     lines.append("")
-    lines.append("読者ペルソナ: ナレッジワーク（日本SaaS）社員。AI業界トレンド・海外組織モデル（FDE等）・SaaS示唆に関心。")
+    lines.append("読者ペルソナ: 日本SaaS企業の社員。AI業界トレンド・海外組織モデル（FDE等）・SaaS示唆に関心。")
     lines.append("")
     lines.append("---")
     lines.append("")
