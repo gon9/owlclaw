@@ -62,7 +62,7 @@ sources:
     enabled: true  # Anthropic共同創業者 Jack Clark による週次リサーチ解説
 
   - name: TLDR AI
-    url: https://tldrnewsletter.substack.com/feed
+    url: https://tldr.tech/api/rss/ai
     type: rss
     enabled: true  # 50万人以上が購読するAI日次ダイジェスト
 
