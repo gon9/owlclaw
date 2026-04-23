@@ -34,6 +34,17 @@ sources:
     type: rss
     enabled: true
 
+  # --- AI-native企業・注目スタートアップ ---
+  - name: Sakana AI Blog
+    url: https://sakana.ai/feed.xml
+    type: rss
+    enabled: true  # 東京発AI-native研究企業。Applied AI Teamなど組織モデルも参考になる
+
+  - name: Ramp Builders
+    url: https://builders.ramp.com/feed.xml
+    type: rss
+    enabled: true  # AI-first Fintech Rampのエンジニアリングブログ。実践的AI活用事例
+
   # --- エンジニア向けニュースレター ---
   - name: The Pragmatic Engineer
     url: https://newsletter.pragmaticengineer.com/feed
@@ -60,14 +71,19 @@ sources:
     type: rss
     enabled: true  # OpenAI/DeepMind等のエンジニアが読むML深掘りニュースレター
 
+  - name: Interconnects AI
+    url: https://www.interconnects.ai/feed
+    type: rss
+    enabled: true  # Nathan Lambert (HuggingFace)によるAIリサーチ解説。高シグナル
+
+  - name: Lenny's Newsletter
+    url: https://www.lennysnewsletter.com/feed
+    type: rss
+    enabled: true  # Product/Growth領域。SaaS経営・組織示唆が豊富
+
 # 追加候補 (enabled: true にすれば有効化):
 #  - name: Anthropic News
 #    url: https://www.anthropic.com/news/rss.xml  # 公式RSSなし。コミュニティミラーが必要
-#    type: rss
-#    enabled: false
-#
-#  - name: Lenny's Newsletter
-#    url: https://www.lennysnewsletter.com/feed
 #    type: rss
 #    enabled: false
 #

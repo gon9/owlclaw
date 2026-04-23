@@ -13,7 +13,8 @@ Read ツールで読んでください（python3やjqは使わないこと）。
 以下の優先順位で選定する。重複トピックは1件にまとめる。
 
 ### 優先度 HIGH（必ず拾う）
-- **新AI職種・役割の登場**: AI Engineer / Head of AI / Prompt Architect / AI Product Manager など、海外先進企業で新設されている職種・チーム構造の変化
+- **新AI職種・役割の登場**: Applied AI Engineer / AI Engineer / Head of AI / Prompt Architect / AI Product Manager など、海外先進企業で新設されている職種・チーム構造の変化。特に実務レベルの求人・チーム紹介記事
+- **AI-native企業の実践事例**: Ramp / Sakana AI / Cursor / Replit など、AIを中核に置く企業のプロダクト・組織・エンジニアリング手法
 - **ユニコーン・有力スタートアップの動向**: 資金調達 / 買収 / 急成長 / 新プロダクト発表（特に$100M以上のラウンド）
 - **LLMモデルの実質的アップデート**: 性能・コスト・マルチモーダル・エージェント機能の変化（発表だけでなく実用インパクトあるもの）
 - **海外先進組織モデルの変化**: FDE / AI-native チーム / "software is eating the world" 系の組織・働き方の再定義
@@ -21,7 +22,7 @@ Read ツールで読んでください（python3やjqは使わないこと）。
 ### 優先度 MEDIUM
 - 日本SaaS企業が参考にすべき海外SaaSの戦略・数字
 - AIの規制・安全・倫理で業界に影響する動き
-- 注目エンジニア/経営者の発言・思想（Altman, Dario, Karpathy等）
+- **注目人物の発言・思想**: Eric Glyman (Ramp CEO) / Sam Altman / Dario Amodei / Andrej Karpathy / Nathan Lambert 等の示唆に富む発言
 
 ### 優先度 LOW（他に良いものがなければ）
 - 研究論文・ベンチマーク（実用インパクトが薄いもの）
