@@ -2,7 +2,7 @@ obsidian_vault: "/Users/gon9a/Library/CloudStorage/GoogleDrive-gon9a.chan@gmail.
 obsidian_subdir: "owlclaw/daily"
 
 digest:
-  max_items: 6
+  max_items: 10
   lookback_hours: 24
   language: ja
   persona: |
