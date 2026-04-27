@@ -45,6 +45,32 @@ sources:
     type: rss
     enabled: true  # AI-first Fintech Rampのエンジニアリングブログ。実践的AI活用事例
 
+  - name: Palantir Blog
+    url: https://blog.palantir.com/feed
+    type: rss
+    enabled: true  # FDE（Forward Deployed Engineer）の先駆者。官公庁・エンタープライズへのAI導入実践
+
+  - name: Elad Gil Blog
+    url: https://blog.eladgil.com/feed
+    type: rss
+    enabled: true  # シリアルアントレプレナー・投資家。AIベンチャーの市況・グロース戦略
+
+  # --- 営業SaaS・セールスイネーブルメント ---
+  - name: SaaStr
+    url: https://www.saastr.com/feed/
+    type: rss
+    enabled: true  # B2B SaaS・営業SaaSのグローバル最大のコミュニティメディア
+
+  - name: Gong Blog
+    url: https://www.gong.io/blog/feed/
+    type: rss
+    enabled: true  # Revenue Intelligence / AIセールスSaaSの世界的トップ
+
+  - name: Highspot Blog
+    url: https://www.highspot.com/blog/feed/
+    type: rss
+    enabled: true  # セールスイネーブルメント・プラットフォーム最大手
+
   # --- エンジニア向けニュースレター ---
   - name: The Pragmatic Engineer
     url: https://newsletter.pragmaticengineer.com/feed
