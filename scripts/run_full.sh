@@ -13,7 +13,7 @@ echo "=== [1/3] RSS フェッチ ==="
 bash "$PROJ/scripts/run.sh" pre
 
 echo "=== [2/3] AI 要約 (claude --print) ==="
-claude --print --allowedTools "Read,Write" "$(cat "$PROJ/prompts/claude_task.md")"
+cat "$PROJ/prompts/claude_task.md" | claude --print --allowedTools "Read,Write"
 
 echo "=== [3/3] 配信 (Obsidian + Slack) ==="
 bash "$PROJ/scripts/run.sh" post "$DATE"

@@ -62,7 +62,7 @@ sources:
     enabled: true  # B2B SaaS・営業SaaSのグローバル最大のコミュニティメディア
 
   - name: Gong Blog
-    url: https://www.gong.io/blog/feed/
+    url: https://www.gong.io/blog/feed
     type: rss
     enabled: true  # Revenue Intelligence / AIセールスSaaSの世界的トップ
 
