@@ -1,0 +1,20 @@
+id: daily-digest
+description: AI ニュース日次ダイジェスト（RSS → Claude 要約 → Obsidian + Slack）
+schedule:
+  type: cron
+  expr: "0 9 * * *"           # 毎朝 9:00 JST（実起動は Claude Code スケジューラ）
+sources:
+  - type: rss
+    config_ref: config/sources.yaml
+prompt:
+  task_md: prompts/daily-digest.md
+  standing_order_md: prompts/standing-order.md
+state:
+  namespace: daily-digest
+outputs:
+  - type: obsidian
+    subdir: owlclaw/daily
+  - type: slack
+quiet_hours:
+  start: "22:00"
+  end: "07:00"

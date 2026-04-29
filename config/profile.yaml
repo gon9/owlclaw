@@ -1,0 +1,13 @@
+# ユーザープロファイル — UC4/UC1/UC5 等で参照
+# このファイルは gitignore しない（個人情報は最小限に留める）
+timezone: "Asia/Tokyo"
+active_hours:
+  start: "07:00"
+  end: "22:00"
+
+# UC4: 誕生月チェックリスト
+birthday: ""               # YYYY-MM-DD 形式で記入
+
+# UC1/UC5: 出発時刻・訪問先ブリーフィング
+home_address: ""           # 例: "東京都渋谷区○○ X-XX"
+internal_domains: []       # 例: ["knowledgework.jp"] — 社内/社外判定に使用

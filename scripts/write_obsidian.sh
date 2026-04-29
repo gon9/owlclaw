@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # owlclaw: Obsidianノート書き出しスクリプト
-# 使い方: bash write_obsidian.sh "YYYY-MM-DD"
-# → tmp/note_draft.md の内容を Obsidian vault に保存する
-# Claudeは Write ツールで tmp/note_draft.md に書いてからこのスクリプトを呼ぶこと
+# 使い方: bash write_obsidian.sh "YYYY-MM-DD" [draft_path]
+#   draft_path: 省略時は tmp/note_draft.md (後方互換)
+# → draft_path の内容を Obsidian vault に保存する
 
 set -euo pipefail
 
 VAULT="/Users/gon9a/Library/CloudStorage/GoogleDrive-gon9a.chan@gmail.com/マイドライブ/workspace/obsidian_drive"
-DRAFT="/Users/gon9a/workspace/ai_agent/owlclaw/tmp/note_draft.md"
 DATE="${1:-}"
+DRAFT="${2:-/Users/gon9a/workspace/ai_agent/owlclaw/tmp/note_draft.md}"
 
 if [[ -z "$DATE" ]]; then
   echo "Error: 日付を引数に渡してください: write_obsidian.sh YYYY-MM-DD" >&2

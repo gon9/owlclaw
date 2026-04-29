@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # owlclaw: Slack通知スクリプト
-# 使い方: bash slack_notify.sh
-# → tmp/slack_draft.txt の内容を Slack に送信する
-# Claudeは Write ツールで tmp/slack_draft.txt に書いてからこのスクリプトを呼ぶこと
+# 使い方: bash slack_notify.sh [draft_path]
+#   draft_path: 省略時は tmp/slack_draft.txt (後方互換)
+# → draft_path の内容を Slack に送信する
 
 set -euo pipefail
 
 WEBHOOK_FILE="/Users/gon9a/workspace/ai_agent/owlclaw/secrets/slack_webhook.txt"
-DRAFT="/Users/gon9a/workspace/ai_agent/owlclaw/tmp/slack_draft.txt"
+DRAFT="${1:-/Users/gon9a/workspace/ai_agent/owlclaw/tmp/slack_draft.txt}"
 
 if [[ ! -f "$WEBHOOK_FILE" ]]; then
   echo "Error: $WEBHOOK_FILE が存在しません。secrets/slack_webhook.txt にWebhook URLを配置してください。" >&2
