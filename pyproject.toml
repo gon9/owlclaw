@@ -5,6 +5,9 @@ description = "AI news digest pipeline: RSS fetch → LLM curation → Obsidian 
 requires-python = ">=3.12"
 dependencies = [
     "pyyaml>=6.0",
+    "google-api-python-client>=2.120",
+    "google-auth-httplib2>=0.2",
+    "google-auth-oauthlib>=1.2",
 ]
 
 [tool.uv]

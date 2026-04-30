@@ -57,10 +57,8 @@ def _dispatch_source(
         from sources.rss import RssSource
         config_path = PROJ / source_cfg.get("config_ref", "config/sources.yaml")
         config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-        # source_filter を config に注入
         if "source_filter" in source_cfg:
             config["source_filter"] = source_cfg["source_filter"]
-        # per-source lookback_hours オーバーライド
         cutoff = (
             now - timedelta(hours=source_cfg["lookback_hours"])
             if "lookback_hours" in source_cfg
@@ -68,6 +66,16 @@ def _dispatch_source(
         )
         last_seen = current_state.get("last_seen_per_source", {})
         return RssSource().fetch(config, cutoff, last_seen_per_source=last_seen)
+    if src_type == "gmail":
+        from sources.gmail import GmailSource
+        config = dict(source_cfg)  # コピーして注入
+        config["__seen_email_ids__"] = current_state.get("seen_email_ids", [])
+        cutoff = (
+            now - timedelta(hours=source_cfg["lookback_hours"])
+            if "lookback_hours" in source_cfg
+            else global_cutoff
+        )
+        return GmailSource().fetch(config, cutoff)
     raise ValueError(f"未対応の source タイプ: {src_type}")
 
 
@@ -228,13 +236,23 @@ def main() -> None:
     print(f"=== [{task_id}] 4/4 outputs dispatch ===", file=sys.stderr)
     _dispatch_outputs(task, task_dir, date)
 
-    # state 更新: last_run + last_seen_per_source をマージ
+    # state 更新: last_run + last_seen_per_source + seen_email_ids をマージ
     current_state["last_run"] = now.isoformat()
-    if all_latest_seen:
+    last_seen_updates: dict[str, str] = {}
+    new_seen_ids: list[str] = []
+    for key, value in all_latest_seen.items():
+        if key == "__gmail_seen_ids__" and isinstance(value, list):
+            new_seen_ids.extend(value)
+        else:
+            last_seen_updates[key] = value
+    if last_seen_updates:
         current_state["last_seen_per_source"] = {
             **current_state.get("last_seen_per_source", {}),
-            **all_latest_seen,
+            **last_seen_updates,
         }
+    if new_seen_ids:
+        existing_ids: set[str] = set(current_state.get("seen_email_ids", []))
+        current_state["seen_email_ids"] = list(existing_ids | set(new_seen_ids))
     state_mod.save(task["state"]["namespace"], current_state)
 
     print(f"=== [{task_id}] 完了 ({date}) ===", file=sys.stderr)

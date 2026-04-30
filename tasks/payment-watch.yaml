@@ -1,0 +1,23 @@
+id: payment-watch
+description: Gmail 決済メール週次サマリ（日曜 21:00）
+schedule:
+  type: cron
+  expr: "0 21 * * 0"           # 毎週日曜 21:00 JST
+sources:
+  - type: gmail
+    query: >-
+      from:(noreply@amazon.co.jp OR noreply@rakuten.co.jp OR
+      noreply@paypay.ne.jp OR no_reply@email.apple.com OR
+      noreply@payments.google.com OR billing-noreply@google.com OR
+      kouza@card.jcb.co.jp OR info@mufg.jp)
+      newer_than:7d
+    max_results: 200
+    lookback_hours: 168            # 7日分
+prompt:
+  task_md: prompts/payment-watch.md
+  standing_order_md: prompts/standing-order.md
+state:
+  namespace: payment-watch
+outputs:
+  - type: slack
+allowed_tools: "Read,Write"
