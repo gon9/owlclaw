@@ -1,0 +1,25 @@
+id: blog-watch
+description: ブログ新着巡回（週次・重複なし）
+schedule:
+  type: cron
+  expr: "0 9 * * 1"           # 毎週月曜 9:00 JST（実起動は Claude Code スケジューラ）
+sources:
+  - type: rss
+    config_ref: config/sources.yaml
+    lookback_hours: 168         # 初回フルスキャン 7 日分。以降は last_seen が優先
+    source_filter:
+      - "The Pragmatic Engineer"
+      - "Latent Space"
+      - "Import AI"
+      - "Interconnects AI"
+      - "Lenny's Newsletter"
+      - "Sakana AI Blog"
+      - "Elad Gil Blog"
+prompt:
+  task_md: prompts/blog-watch.md
+  standing_order_md: prompts/standing-order.md
+state:
+  namespace: blog-watch
+outputs:
+  - type: slack
+allowed_tools: "Read,Write"

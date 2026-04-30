@@ -91,26 +91,41 @@ def _fetch_feed(url: str, name: str, cutoff: datetime) -> list[dict]:
 class RssSource(BaseSource):
     """RSSフィードソースプラグイン。"""
 
-    def fetch(self, config: dict, cutoff: datetime) -> str:
+    def fetch(
+        self,
+        config: dict,
+        cutoff: datetime,
+        last_seen_per_source: dict | None = None,
+    ) -> tuple[str, dict]:
         """
-        設定された全RSSフィードを取得し、Markdown文字列として返す。
+        設定された全RSSフィードを取得し、(Markdown文字列, 最終既読辞書) を返す。
 
         Parameters
         ----------
         config : dict
-            sources.yaml のパース済み辞書
+            sources.yaml のパース済み辞書。
+            "_source_filter" キーがあればそのソース名リストのみ対象にする。
         cutoff : datetime
-            これより古い記事は除外する閾値（UTC aware）
+            グローバル閾値（UTC aware）
+        last_seen_per_source : dict | None
+            {source_name: iso_str} — 指定時は各ソースで max(cutoff, last_seen) を使用
 
         Returns
         -------
-        str
-            Markdown形式の記事一覧テキスト
+        tuple[str, dict]
+            (Markdown テキスト, {source_name: latest_pub_iso_str})
         """
         digest_cfg = config.get("digest", {})
         lookback_hours: int = digest_cfg.get("lookback_hours", 24)
         persona: str = digest_cfg.get("persona", "日本SaaS企業の社員。")
-        sources = [s for s in config.get("sources", []) if s.get("enabled") and s.get("url")]
+        source_filter: list[str] | None = config.get("source_filter")
+
+        all_sources = [s for s in config.get("sources", []) if s.get("enabled") and s.get("url")]
+        sources = (
+            [s for s in all_sources if s["name"] in source_filter]
+            if source_filter
+            else all_sources
+        )
 
         today = datetime.now(UTC).astimezone(JST).strftime("%Y-%m-%d")
 
@@ -119,19 +134,42 @@ class RssSource(BaseSource):
             "",
             f"読者ペルソナ: {persona.strip()}",
             f"取得対象期間: 過去{lookback_hours}時間以内"
-            f" (cutoff: {cutoff.strftime('%Y-%m-%d %H:%M')} UTC)",
+            f" (global cutoff: {cutoff.strftime('%Y-%m-%d %H:%M')} UTC)",
             "",
             "---",
             "",
         ]
 
         total = 0
+        latest_seen: dict[str, str] = {}
+
         for s in sources:
             name = s["name"]
+
+            # per-source 有効カットオフ: last_seen があれば max(cutoff, last_seen) を使用
+            effective_cutoff = cutoff
+            if last_seen_per_source and name in last_seen_per_source:
+                try:
+                    ls_dt = datetime.fromisoformat(last_seen_per_source[name])
+                    if ls_dt.tzinfo is None:
+                        ls_dt = ls_dt.replace(tzinfo=UTC)
+                    effective_cutoff = max(cutoff, ls_dt)
+                except ValueError:
+                    pass
+
             print(f"Fetching {name} ...", file=sys.stderr)
-            items = _fetch_feed(s["url"], name, cutoff)
+            items = _fetch_feed(s["url"], name, effective_cutoff)
             print(f"  → {len(items)} items", file=sys.stderr)
             total += len(items)
+
+            # 各ソースの最新記事日時を記録
+            for it in items:
+                if it["pub_dt"]:
+                    current = latest_seen.get(name)
+                    if current is None or it["pub_dt"] > datetime.fromisoformat(current).replace(
+                        tzinfo=UTC
+                    ):
+                        latest_seen[name] = it["pub_dt"].isoformat()
 
             lines.append(f"## {name} ({len(items)}件)")
             if not items:
@@ -152,4 +190,4 @@ class RssSource(BaseSource):
         ]
 
         print(f"✓ Fetched {total} items total", file=sys.stderr)
-        return "\n".join(lines)
+        return "\n".join(lines), latest_seen

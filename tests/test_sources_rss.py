@@ -150,9 +150,10 @@ class TestRssSource:
 
     def test_ソースが空の場合はヘッダーのみ返す(self):
         cutoff = datetime(2026, 4, 28, tzinfo=UTC)
-        result = RssSource().fetch(self.MINIMAL_CONFIG, cutoff)
-        assert "owlclaw digest input" in result
-        assert "合計 0 件" in result
+        markdown, latest_seen = RssSource().fetch(self.MINIMAL_CONFIG, cutoff)
+        assert "owlclaw digest input" in markdown
+        assert "合計 0 件" in markdown
+        assert latest_seen == {}
 
     def test_disabled_ソースはスキップされる(self):
         config = {
@@ -162,8 +163,8 @@ class TestRssSource:
             ],
         }
         cutoff = datetime(2026, 4, 28, tzinfo=UTC)
-        result = RssSource().fetch(config, cutoff)
-        assert "Disabled" not in result
+        markdown, _ = RssSource().fetch(config, cutoff)
+        assert "Disabled" not in markdown
 
     @patch("sources.rss._fetch_feed", return_value=[])
     def test_取得0件ソースは取得できませんでしたと表示(self, mock_fetch):
@@ -172,5 +173,83 @@ class TestRssSource:
             "sources": [{"name": "TestFeed", "url": "https://example.com/feed", "enabled": True}],
         }
         cutoff = datetime(2026, 4, 28, tzinfo=UTC)
-        result = RssSource().fetch(config, cutoff)
-        assert "取得できませんでした" in result
+        markdown, _ = RssSource().fetch(config, cutoff)
+        assert "取得できませんでした" in markdown
+
+    @patch("sources.rss.urllib.request.urlopen")
+    def test_source_filterで指定ソースのみ取得する(self, mock_urlopen):
+        rss_bytes = b"""<?xml version="1.0"?>
+<rss version="2.0"><channel>
+  <item>
+    <title>A Article</title><link>https://a.com/1</link>
+    <pubDate>Mon, 28 Apr 2026 09:00:00 +0000</pubDate>
+  </item>
+</channel></rss>"""
+        ctx = MagicMock()
+        ctx.__enter__ = MagicMock(
+            return_value=MagicMock(read=MagicMock(return_value=rss_bytes))
+        )
+        ctx.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = ctx
+        config = {
+            "digest": {"lookback_hours": 24, "persona": "テスト。"},
+            "source_filter": ["FeedA"],  # FeedB は除外
+            "sources": [
+                {"name": "FeedA", "url": "https://a.com/feed", "enabled": True},
+                {"name": "FeedB", "url": "https://b.com/feed", "enabled": True},
+            ],
+        }
+        cutoff = datetime(2026, 4, 27, tzinfo=UTC)
+        markdown, _ = RssSource().fetch(config, cutoff)
+        assert "FeedA" in markdown
+        assert "FeedB" not in markdown
+
+    @patch("sources.rss.urllib.request.urlopen")
+    def test_last_seen_per_sourceでper_sourceカットオフが使われる(self, mock_urlopen):
+        old_rss = b"""<?xml version="1.0"?>
+<rss version="2.0"><channel>
+  <item>
+    <title>Old Article</title><link>https://src.com/old</link>
+    <pubDate>Mon, 20 Apr 2026 09:00:00 +0000</pubDate>
+  </item>
+</channel></rss>"""
+        ctx = MagicMock()
+        ctx.__enter__ = MagicMock(
+            return_value=MagicMock(read=MagicMock(return_value=old_rss))
+        )
+        ctx.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = ctx
+        config = {
+            "digest": {"lookback_hours": 168, "persona": "テスト。"},
+            "sources": [{"name": "MySrc", "url": "https://src.com/feed", "enabled": True}],
+        }
+        # global cutoff = 2026-04-14 (168h前)。last_seen = 2026-04-21 → 記事は除外される
+        cutoff = datetime(2026, 4, 14, tzinfo=UTC)
+        last_seen = {"MySrc": "2026-04-21T00:00:00+00:00"}
+        markdown, latest_seen = RssSource().fetch(config, cutoff, last_seen_per_source=last_seen)
+        assert "Old Article" not in markdown  # last_seen より古いので除外
+        assert latest_seen == {}  # 取得0件なので更新なし
+
+    @patch("sources.rss.urllib.request.urlopen")
+    def test_新着記事がある場合latest_seenを更新する(self, mock_urlopen):
+        fresh_rss = b"""<?xml version="1.0"?>
+<rss version="2.0"><channel>
+  <item>
+    <title>Fresh Article</title><link>https://src.com/new</link>
+    <pubDate>Mon, 28 Apr 2026 09:00:00 +0000</pubDate>
+  </item>
+</channel></rss>"""
+        ctx = MagicMock()
+        ctx.__enter__ = MagicMock(
+            return_value=MagicMock(read=MagicMock(return_value=fresh_rss))
+        )
+        ctx.__exit__ = MagicMock(return_value=False)
+        mock_urlopen.return_value = ctx
+        config = {
+            "digest": {"lookback_hours": 24, "persona": "テスト。"},
+            "sources": [{"name": "MySrc", "url": "https://src.com/feed", "enabled": True}],
+        }
+        cutoff = datetime(2026, 4, 27, tzinfo=UTC)
+        _, latest_seen = RssSource().fetch(config, cutoff)
+        assert "MySrc" in latest_seen
+        assert "2026-04-28" in latest_seen["MySrc"]

@@ -1,0 +1,15 @@
+id: birthday-month
+description: 誕生月チェックリスト通知（免許更新・健康診断・自治体特典・保険・税）
+schedule:
+  type: cron
+  expr: "0 8 1 * *"           # 毎月1日 8:00 JST（orchestrator が誕生月以外をスキップ）
+sources: []                    # 外部ソースなし（profile + WebFetch で情報収集）
+prompt:
+  task_md: prompts/birthday-month.md
+  standing_order_md: prompts/standing-order.md
+state:
+  namespace: birthday-month
+outputs:
+  - type: slack
+allowed_tools: "Read,Write,WebFetch,WebSearch"
+birthday_guard: true           # 誕生月以外は orchestrator がスキップ
