@@ -6,8 +6,9 @@
 
 set -euo pipefail
 
-WEBHOOK_FILE="/Users/gon9a/workspace/ai_agent/owlclaw/secrets/slack_webhook.txt"
-DRAFT="${1:-/Users/gon9a/workspace/ai_agent/owlclaw/tmp/slack_draft.txt}"
+PROJ="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+WEBHOOK_FILE="$PROJ/secrets/slack_webhook.txt"
+DRAFT="${1:-$PROJ/tmp/slack_draft.txt}"
 
 if [[ ! -f "$WEBHOOK_FILE" ]]; then
   echo "Error: $WEBHOOK_FILE が存在しません。secrets/slack_webhook.txt にWebhook URLを配置してください。" >&2

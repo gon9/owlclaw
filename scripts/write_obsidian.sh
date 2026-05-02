@@ -6,9 +6,15 @@
 
 set -euo pipefail
 
-VAULT="/Users/gon9a/Library/CloudStorage/GoogleDrive-gon9a.chan@gmail.com/マイドライブ/workspace/obsidian_drive"
+PROJ="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+if [[ -z "${OBSIDIAN_VAULT:-}" ]]; then
+  echo "Error: 環境変数 OBSIDIAN_VAULT が未設定です。.env.example を参照して設定してください。" >&2
+  exit 1
+fi
+VAULT="$OBSIDIAN_VAULT"
 DATE="${1:-}"
-DRAFT="${2:-/Users/gon9a/workspace/ai_agent/owlclaw/tmp/note_draft.md}"
+DRAFT="${2:-$PROJ/tmp/note_draft.md}"
 
 if [[ -z "$DATE" ]]; then
   echo "Error: 日付を引数に渡してください: write_obsidian.sh YYYY-MM-DD" >&2

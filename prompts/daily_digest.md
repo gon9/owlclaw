@@ -3,7 +3,7 @@
 このファイルは **Claudeが担当する「要約・キュレーション」のみ** の指示です。
 RSSフェッチ・ファイル書き込み・Slack送信はスクリプトが担当します。
 
-`/Users/gon9a/workspace/ai_agent/owlclaw/tmp/digest_input.md` に整形済み記事一覧があります。
+`/Users/gon9a/workspace/ai-agent/owlclaw/tmp/digest_input.md` に整形済み記事一覧があります。
 Read ツールで読んでください（python3やjqは使わないこと）。
 
 ---

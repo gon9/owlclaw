@@ -1,4 +1,4 @@
-obsidian_vault: "/Users/gon9a/Library/CloudStorage/GoogleDrive-gon9a.chan@gmail.com/マイドライブ/workspace/obsidian_drive"
+# Obsidian vault の絶対パスは環境変数 OBSIDIAN_VAULT で設定してください (.env.example 参照)
 obsidian_subdir: "owlclaw/daily"
 
 digest:

@@ -1,5 +1,7 @@
 # owlclaw — Claude Code 設定
 
+共通ルールは [AGENTS.md](AGENTS.md) を参照すること。
+
 ## プロジェクト概要
 
 AI ニュースダイジェストパイプライン。RSSフェッチ → LLMキュレーション → Obsidian保存 + Slack通知を自動化する。
@@ -9,7 +11,7 @@ AI ニュースダイジェストパイプライン。RSSフェッチ → LLMキ
 ### スケジュールタスクのプロンプト（1行のみ）
 
 ```
-bash /Users/gon9a/workspace/ai_agent/owlclaw/scripts/run_full.sh
+bash /Users/gon9a/workspace/ai-agent/owlclaw/scripts/run_full.sh
 ```
 
 ### 必要なツール権限
