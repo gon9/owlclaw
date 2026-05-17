@@ -76,7 +76,99 @@ def _dispatch_source(
             else global_cutoff
         )
         return GmailSource().fetch(config, cutoff)
+    if src_type == "arxiv":
+        from sources.arxiv import ArxivSource
+        return ArxivSource().fetch(source_cfg, global_cutoff)
+    if src_type == "podcast":
+        from sources.podcast import PodcastSource
+        return PodcastSource().fetch(source_cfg, global_cutoff)
+    if src_type == "twitter":
+        from sources.twitter import TwitterSource
+        return TwitterSource().fetch(source_cfg, global_cutoff)
     raise ValueError(f"未対応の source タイプ: {src_type}")
+
+
+def _score_events_md(events_md: str, scoring_cfg: dict) -> str:
+    """events.md の各アイテムを score.py でスコアリングして注釈を付与する。
+
+    Parameters
+    ----------
+    events_md : str
+        ソースfetch後のMarkdown文字列
+    scoring_cfg : dict
+        スコアリング設定。有効キー:
+          - top_n (int): スコア上位N件のみ残す (0=全件保持, デフォルト: 0)
+
+    Returns
+    -------
+    str
+        スコア注釈付き Markdown
+    """
+    import re
+
+    from tools.score import ScoreError, score_item
+
+    top_n: int = int(scoring_cfg.get("top_n", 0))
+
+    pattern = re.compile(
+        r"(### \d+\.\s+)(.+?)\n((?:- .+\n)*)",
+        re.MULTILINE,
+    )
+    scored: list[tuple[int, str, str]] = []
+
+    def _annotate(m: re.Match) -> str:
+        prefix = m.group(1)
+        title = m.group(2).strip()
+        details = m.group(3)
+        url = ""
+        excerpt = ""
+        for line in details.splitlines():
+            if line.startswith("- URL:"):
+                url = line[6:].strip()
+            elif line.startswith("- Excerpt:") or line.startswith("- Abstract:"):
+                excerpt = line.split(":", 1)[1].strip()
+        try:
+            result = score_item({"title": title, "text": excerpt or title, "url": url})
+            score = result["score"]
+            prio = result["priority"].upper()
+            annotation = f"[Score:{score}/10|{prio}] "
+        except ScoreError as e:
+            print(f"  [scoring] スコアリング失敗: {e}", file=sys.stderr)
+            score = 0
+            annotation = "[Score:?/10] "
+        full_block = f"{prefix}{annotation}{title}\n{details}"
+        scored.append((score, title, full_block))
+        return full_block
+
+    annotated_md = pattern.sub(_annotate, events_md)
+
+    if top_n > 0 and scored:
+        sorted_blocks = sorted(scored, key=lambda x: x[0], reverse=True)
+        top_titles = {title for _, title, _ in sorted_blocks[:top_n]}
+        keep_pattern = re.compile(
+            r"(### \d+\.\s+(?:\[Score:\S+\s+)?(?:.*?)\n(?:- .+\n)*)",
+            re.MULTILINE,
+        )
+
+        def _keep_top(m: re.Match) -> str:
+            block = m.group(0)
+            title_match = re.search(r"### \d+\.\s+(?:\[\S+\s+)?(.+?)\n", block)
+            if title_match and title_match.group(1).strip() in top_titles:
+                return block
+            return ""
+
+        filtered = keep_pattern.sub(_keep_top, annotated_md)
+        header_lines = []
+        for line in annotated_md.splitlines():
+            if line.startswith("###"):
+                break
+            header_lines.append(line)
+        footer_note = (
+            f"\n\n---\n*スコアリング: {len(scored)}件中上位{top_n}件を表示*\n"
+        )
+        return "\n".join(header_lines) + "\n" + filtered.strip() + footer_note
+
+    return annotated_md
 
 
 def _build_claude_prompt(task: dict, task_dir: Path) -> str:
@@ -220,7 +312,17 @@ def main() -> None:
         )
     (task_dir / "events.md").write_text(events_md, encoding="utf-8")
 
-    print(f"=== [{task_id}] 2/4 state / profile 配置 ===", file=sys.stderr)
+    scoring_cfg: dict = task.get("scoring", {})
+    if scoring_cfg.get("enabled"):
+        print(f"=== [{task_id}] 2/5 scoring ===", file=sys.stderr)
+        events_md = _score_events_md(events_md, scoring_cfg)
+        (task_dir / "events.md").write_text(events_md, encoding="utf-8")
+        steps = "5"
+    else:
+        steps = "4"
+
+    step_state = 3 if scoring_cfg.get("enabled") else 2
+    print(f"=== [{task_id}] {step_state}/{steps} state / profile 配置 ===", file=sys.stderr)
     (task_dir / "state.json").write_text(
         json.dumps(current_state, ensure_ascii=False, indent=2), encoding="utf-8"
     )
@@ -228,12 +330,14 @@ def main() -> None:
         yaml.dump(profile, allow_unicode=True), encoding="utf-8"
     )
 
-    print(f"=== [{task_id}] 3/4 claude --print ===", file=sys.stderr)
+    step_claude = 4 if scoring_cfg.get("enabled") else 3
+    print(f"=== [{task_id}] {step_claude}/{steps} claude --print ===", file=sys.stderr)
     allowed_tools = task.get("allowed_tools", "Read,Write")
     prompt = _build_claude_prompt(task, task_dir)
     _invoke_claude(prompt, allowed_tools=allowed_tools)
 
-    print(f"=== [{task_id}] 4/4 outputs dispatch ===", file=sys.stderr)
+    step_out = 5 if scoring_cfg.get("enabled") else 4
+    print(f"=== [{task_id}] {step_out}/{steps} outputs dispatch ===", file=sys.stderr)
     _dispatch_outputs(task, task_dir, date)
 
     # state 更新: last_run + last_seen_per_source + seen_email_ids をマージ

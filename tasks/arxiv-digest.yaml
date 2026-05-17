@@ -1,0 +1,32 @@
+id: arxiv-digest
+description: arXiv論文日次ダイジェスト（cs.AI/cs.CL/cs.LG → Claude 要約 → Obsidian + Slack）
+schedule:
+  type: cron
+  expr: "0 10 * * *"           # 毎朝 10:00 JST
+sources:
+  - type: arxiv
+    query: "LLM agent reasoning evaluation"
+    categories: ["cs.AI", "cs.CL", "cs.LG"]
+    days: 2
+    max_results: 15
+  - type: arxiv
+    query: "foundation model multimodal vision language"
+    categories: ["cs.CV", "cs.AI"]
+    days: 2
+    max_results: 10
+prompt:
+  task_md: prompts/arxiv-digest.md
+  standing_order_md: prompts/standing-order.md
+state:
+  namespace: arxiv-digest
+outputs:
+  - type: obsidian
+    subdir: owlclaw/arxiv
+  - type: slack
+allowed_tools: "Read,Write"
+scoring:
+  enabled: true
+  top_n: 8
+quiet_hours:
+  start: "22:00"
+  end: "07:00"

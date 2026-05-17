@@ -14,26 +14,25 @@ AI ニュースダイジェストパイプライン。RSSフェッチ → LLMキ
 bash /Users/gon9a/workspace/ai-agent/owlclaw/scripts/run_full.sh
 ```
 
+### 実行ルール（厳守）
+
+- 上記の bash コマンド **1つだけ** を実行して終了すること
+- 事前確認（ls, cat, ps, find 等）は **一切禁止** — スクリプト内で全て処理される
+- 事後確認も **一切禁止** — 成功/失敗はスクリプトの exit code で判定される
+- 追加のコマンドやツール呼び出しを行わないこと
+
 ### 必要なツール権限
 
-- `Bash` — RSSフェッチ・配信スクリプトの実行
-- `Read` — digest_input.md / daily_digest.md の読み取り
-- `Write` — note_draft.md / slack_draft.txt の書き出し
+- `Bash` — パイプラインスクリプトの実行（1コマンドのみ）
 
 ## パイプライン概要
 
 ```
-run_full.sh
-  [1/3] uv run python scripts/fetch_rss.py
-        → tmp/digest_input.md (過去24h以内の記事一覧)
-
-  [2/3] claude --print --allowedTools "Read,Write" "$(cat prompts/claude_task.md)"
-        → tmp/note_draft.md  (Obsidianノート)
-        → tmp/slack_draft.txt (Slackメッセージ)
-
-  [3/3] bash scripts/run.sh post YYYY-MM-DD
-        → Obsidian vault にノート保存
-        → Slack Webhook で通知送信
+run_full.sh → run_task.sh daily-digest → orchestrator.py
+  [1/4] sources fetch    — sources/rss.py で RSS 取得 → tmp/<task-id>/events.md
+  [2/4] state/profile    — state.json, profile.yaml を tmp/<task-id>/ に配置
+  [3/4] claude --print   — LLM キュレーション → note_draft.md / slack.txt
+  [4/4] outputs dispatch — write_obsidian.sh / slack_notify.sh
 ```
 
 ## ディレクトリ構成
@@ -42,17 +41,18 @@ run_full.sh
 owlclaw/
 ├── config/
 │   └── sources.yaml        # RSSソース定義・ダイジェスト設定
-├── prompts/
-│   ├── daily_digest.md     # キュレーション・要約指示（Claude向け）
-│   └── claude_task.md      # run_full.sh から渡すタスク指示
+├── prompts/                # Claude向けプロンプト
 ├── scripts/
-│   ├── fetch_rss.py        # RSSフェッチ（uv run python）
-│   ├── run.sh              # pre / post サブコマンド
-│   ├── run_full.sh         # フルパイプライン（スケジューラー用エントリーポイント）
+│   ├── orchestrator.py     # タスクオーケストレーター（メインロジック）
+│   ├── run_full.sh         # スケジューラー用エントリーポイント
+│   ├── run_task.sh         # タスク実行ラッパー
+│   ├── oneshot.sh          # 手動実行用ラッパー
 │   ├── slack_notify.sh     # Slack Webhook 送信
-│   └── write_obsidian.sh   # Obsidian vault 書き出し
-├── secrets/
-│   └── slack_webhook.txt   # Slack Webhook URL（gitignore済み）
+│   ├── write_obsidian.sh   # Obsidian vault 書き出し
+│   └── state.py            # 状態永続化モジュール
+├── sources/                # ソースプラグイン (rss.py, gmail.py)
+├── tasks/                  # タスク定義 YAML
+├── secrets/                # Slack Webhook URL（gitignore済み）
 └── tmp/                    # 実行中間ファイル（gitignore済み）
 ```
 

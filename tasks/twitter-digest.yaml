@@ -1,0 +1,34 @@
+id: twitter-digest
+description: X(Twitter) AI情報ダイジェスト（フォロー中アカウント + キーワード → Claude 要約 → Obsidian + Slack）
+schedule:
+  type: cron
+  expr: "0 8 * * *"           # 毎朝 8:00 JST（daily-digestより早めに実行）
+sources:
+  - type: twitter
+    accounts:
+      - zakiryo1533            # @zakiryo1533 — 追跡したいアカウントを追加
+      # - swyx
+      # - karpathy
+    queries:
+      - "LLMエージェント lang:ja -is:retweet min_faves:10"
+      - "AI agent evaluation lang:en -is:retweet min_faves:50"
+      - "FDE forward deployed engineer -is:retweet min_faves:20"
+    limit: 30
+    days: 1
+    min_likes: 5
+prompt:
+  task_md: prompts/twitter-digest.md
+  standing_order_md: prompts/standing-order.md
+state:
+  namespace: twitter-digest
+outputs:
+  - type: obsidian
+    subdir: owlclaw/twitter
+  - type: slack
+allowed_tools: "Read,Write"
+scoring:
+  enabled: true
+  top_n: 10
+quiet_hours:
+  start: "22:00"
+  end: "07:00"
