@@ -226,7 +226,7 @@ class CalendarSource(BaseSource):
             matched.append(event)
             new_ids.append(event_id)
 
-        skipped = len(notified_ids)
+        skipped = sum(1 for e in raw_events if e.get("id", "") in notified_ids)
         filtered_out = len(raw_events) - len(new_ids) - skipped
         print(
             f"✓ Calendar: {len(matched)} 件マッチ"

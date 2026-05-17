@@ -85,6 +85,11 @@ def _dispatch_source(
     if src_type == "twitter":
         from sources.twitter import TwitterSource
         return TwitterSource().fetch(source_cfg, global_cutoff)
+    if src_type == "calendar":
+        from sources.calendar import CalendarSource
+        config = dict(source_cfg)
+        config["__notified_event_ids__"] = current_state.get("notified_event_ids", [])
+        return CalendarSource().fetch(config, global_cutoff)
     raise ValueError(f"未対応の source タイプ: {src_type}")
 
 
