@@ -175,27 +175,31 @@ else
 fi
 
 # ────────────────────────────────────────────
-# 12. launchd: owlclaw 毎朝 9:00 JST
+# 12. launchd: owlclaw 各タスク plist 生成
 # ────────────────────────────────────────────
-cat > "$AGENTS_DIR/com.gon9a.owlclaw-daily-digest.plist" << PLIST
+# 引数: task_id  hour  minute  [extra_interval_xml]
+_make_task_plist() {
+  local task_id="$1" hour="$2" minute="$3" extra="${4:-}"
+  cat > "$AGENTS_DIR/com.gon9a.owlclaw-${task_id}.plist" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>Label</key><string>com.gon9a.owlclaw-daily-digest</string>
+    <key>Label</key><string>com.gon9a.owlclaw-${task_id}</string>
     <key>ProgramArguments</key>
     <array>
         <string>/bin/zsh</string>
         <string>-c</string>
-        <string>source \$HOME/.local/bin/env; export NVM_DIR="\$HOME/.nvm"; [ -s "\$NVM_DIR/nvm.sh" ] &amp;&amp; \\. "\$NVM_DIR/nvm.sh"; security unlock-keychain -p "\$(cat \$HOME/.keychain_pass)" \$HOME/Library/Keychains/login.keychain-db; cd $INSTALL_DIR &amp;&amp; bash scripts/run_full.sh</string>
+        <string>source \$HOME/.local/bin/env; export NVM_DIR="\$HOME/.nvm"; [ -s "\$NVM_DIR/nvm.sh" ] &amp;&amp; \\. "\$NVM_DIR/nvm.sh"; security unlock-keychain -p "\$(cat \$HOME/.keychain_pass)" \$HOME/Library/Keychains/login.keychain-db 2>/dev/null || true; cd $INSTALL_DIR &amp;&amp; bash scripts/run_task.sh ${task_id}</string>
     </array>
     <key>StartCalendarInterval</key>
     <dict>
-        <key>Hour</key><integer>9</integer>
-        <key>Minute</key><integer>0</integer>
+        <key>Hour</key><integer>${hour}</integer>
+        <key>Minute</key><integer>${minute}</integer>
+        ${extra}
     </dict>
-    <key>StandardOutPath</key><string>$INSTALL_DIR/tmp/launchd-stdout.log</string>
-    <key>StandardErrorPath</key><string>$INSTALL_DIR/tmp/launchd-stderr.log</string>
+    <key>StandardOutPath</key><string>$INSTALL_DIR/tmp/launchd-${task_id}.log</string>
+    <key>StandardErrorPath</key><string>$INSTALL_DIR/tmp/launchd-${task_id}-err.log</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>HOME</key><string>$HOME</string>
@@ -204,6 +208,19 @@ cat > "$AGENTS_DIR/com.gon9a.owlclaw-daily-digest.plist" << PLIST
 </dict>
 </plist>
 PLIST
+}
+
+# タスク一覧 (task_id  hour  minute  optional:extra_xml)
+_make_task_plist "departure-time"   7  0
+_make_task_plist "travel-watch"     8  0
+_make_task_plist "travel-checklist" 8  5
+_make_task_plist "twitter-digest"   8 10
+_make_task_plist "birthday-month"   8  0  "<key>Day</key><integer>1</integer>"
+_make_task_plist "daily-digest"     9  0
+_make_task_plist "blog-watch"       9  0  "<key>Weekday</key><integer>1</integer>"
+_make_task_plist "arxiv-digest"    10  0
+_make_task_plist "visit-briefing"  20  0
+_make_task_plist "payment-watch"   21  0  "<key>Weekday</key><integer>0</integer>"
 
 # ────────────────────────────────────────────
 # 13. launchd 登録 (ユーザー権限で実行すること — sudo 不要)
@@ -213,7 +230,13 @@ if [[ "$(id -u)" == "0" ]]; then
   warn "launchd の登録は sudo なしで実行してください。スキップします。"
   warn "  bash scripts/setup_host.sh を sudo なしで再実行してください。"
 else
-  for label in com.gon9a.caffeinate com.gon9a.unlock-keychain com.gon9a.owlclaw-daily-digest; do
+  for label in com.gon9a.caffeinate com.gon9a.unlock-keychain; do
+    launchctl unload "$AGENTS_DIR/$label.plist" 2>/dev/null || true
+    launchctl load "$AGENTS_DIR/$label.plist"
+    log "launchd: $label 登録完了"
+  done
+  for task_id in departure-time travel-watch travel-checklist twitter-digest birthday-month daily-digest blog-watch arxiv-digest visit-briefing payment-watch; do
+    label="com.gon9a.owlclaw-${task_id}"
     launchctl unload "$AGENTS_DIR/$label.plist" 2>/dev/null || true
     launchctl load "$AGENTS_DIR/$label.plist"
     log "launchd: $label 登録完了"
