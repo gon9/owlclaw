@@ -40,6 +40,11 @@ sources:
     type: rss
     enabled: true  # 東京発AI-native研究企業。Applied AI Teamなど組織モデルも参考になる
 
+  - name: Vercel Blog
+    url: https://vercel.com/blog/feed.xml
+    type: rss
+    enabled: true  # Next.js/AI SDK開発元。フロントエンドインフラ・AI統合の最前線
+
   - name: Ramp Builders
     url: https://builders.ramp.com/feed.xml
     type: rss

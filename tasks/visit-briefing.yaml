@@ -1,0 +1,23 @@
+id: visit-briefing
+description: 翌日の訪問先ブリーフィング生成（毎晩 20:00）
+schedule:
+  type: cron
+  expr: "0 20 * * *"           # 毎晩 20:00 JST
+sources:
+  - type: calendar
+    range: tomorrow
+    calendar_id: primary
+    filter:
+      location_kind: physical          # 物理開催のみ
+      attendees_have_external: any     # 外部参加者あり
+    owner_domain: null
+prompt:
+  task_md: prompts/visit-briefing.md
+  standing_order_md: prompts/standing-order.md
+state:
+  namespace: visit-briefing
+outputs:
+  - type: slack
+  - type: obsidian
+    path_template: "Briefings/{date}-{summary}.md"
+allowed_tools: "Read,Write,WebSearch,WebFetch"

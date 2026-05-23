@@ -16,6 +16,9 @@ outputs:
     subdir: owlclaw/daily
   - type: slack
 allowed_tools: "Read,Write"
+scoring:
+  enabled: false        # true にするとスコアリングステップを実行
+  top_n: 10             # 上位N件のみClaudeに渡す (0=全件保持)
 quiet_hours:
   start: "22:00"
   end: "07:00"

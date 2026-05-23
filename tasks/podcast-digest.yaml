@@ -1,0 +1,30 @@
+id: podcast-digest
+description: Podcast/YouTube字幕ダイジェスト（字幕取得 → Claude 要約 → Obsidian + Slack）
+schedule:
+  type: manual                  # 手動実行: bash scripts/oneshot.sh podcast-digest
+sources:
+  - type: podcast
+    urls: []                    # 処理するYouTube URLをここに追加
+    #  - https://www.youtube.com/watch?v=EXAMPLE
+    languages: ["en", "ja"]
+    context: >
+      あなたはFDE職+AI専門家として情報収集しています。
+      このPodcast/YouTube動画から重要な技術的ポイントを日本語で箇条書き5点以内にまとめてください。
+      特にFDE業務やAIモデル動向に関係する内容を優先してください。
+    chunk_size: 8000
+prompt:
+  task_md: prompts/podcast-digest.md
+  standing_order_md: prompts/standing-order.md
+state:
+  namespace: podcast-digest
+outputs:
+  - type: obsidian
+    subdir: owlclaw/podcast
+  - type: slack
+allowed_tools: "Read,Write"
+scoring:
+  enabled: true
+  top_n: 0                      # podcast は件数が少ないので全件保持
+quiet_hours:
+  start: "22:00"
+  end: "07:00"

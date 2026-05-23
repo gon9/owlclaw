@@ -1,0 +1,26 @@
+id: travel-watch
+description: 予約確認メール検知 → 旅程台帳登録（毎朝 8:00）
+schedule:
+  type: cron
+  expr: "0 8 * * *"           # 毎朝 8:00 JST
+sources:
+  - type: gmail
+    query: >-
+      (subject:(予約確認 OR booking confirmation OR reservation confirmed OR
+      eticket OR e-ticket OR 搭乗券 OR ご予約 OR 宿泊確認 OR 乗車票)
+      OR from:(noreply@jal.com OR info@ana.co.jp OR noreply@jr-eki.com OR
+      noreply@booking.com OR no-reply@hotels.com OR noreply@airbnb.com OR
+      noreply@tabelog.com OR support@expedia.co.jp OR noreply@jrkyushu.co.jp))
+      newer_than:1d
+    max_results: 50
+    lookback_hours: 24
+prompt:
+  task_md: prompts/travel-watch.md
+  standing_order_md: prompts/standing-order.md
+state:
+  namespace: travel
+outputs:
+  - type: slack
+  - type: obsidian
+    path_template: "Travel/{trip_id}.md"
+allowed_tools: "Read,Write,WebSearch,WebFetch"

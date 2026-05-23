@@ -1,0 +1,19 @@
+id: departure-time
+description: 当日の物理外出予定スキャン → 出発時刻・交通手段通知（毎朝 7:00）
+schedule:
+  type: cron
+  expr: "0 7 * * *"           # 毎朝 7:00 JST
+sources:
+  - type: calendar
+    range: today
+    calendar_id: primary
+    filter:
+      location_kind: exclude_online    # Zoom/Meet等のURLのみ除外。場所未設定の予定は通す
+prompt:
+  task_md: prompts/departure-time.md
+  standing_order_md: prompts/standing-order.md
+state:
+  namespace: departure-time
+outputs:
+  - type: slack
+allowed_tools: "Read,Write,WebSearch,WebFetch"
