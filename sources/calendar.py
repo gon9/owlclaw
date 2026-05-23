@@ -157,7 +157,8 @@ class CalendarSource(BaseSource):
             タスク YAML の sources 要素をパースした辞書。
             - range: 'today' / 'tomorrow' / 'N days' (デフォルト 'today')
             - calendar_id: カレンダーID (デフォルト 'primary')
-            - filter.location_kind: 'physical' | 'any' (デフォルト 'any')
+            - filter.location_kind: 'physical' | 'exclude_online' | 'any' (デフォルト 'any')
+              'physical' = 住所など物理場所が必須, 'exclude_online' = Zoom等URLのみ除外
             - filter.attendees_have_external: 'any' | None (デフォルト None)
             - owner_domain: 外部参加者判定用の自社ドメイン
             - __notified_event_ids__: 既通知イベントIDリスト（重複抑止）
@@ -175,7 +176,6 @@ class CalendarSource(BaseSource):
         range_str: str = config.get("range", "today")
         calendar_id: str = config.get("calendar_id", "primary")
         flt: dict = config.get("filter", {})
-        require_physical: bool = flt.get("location_kind") == "physical"
         require_external: bool = flt.get("attendees_have_external") == "any"
         owner_domain: str | None = config.get("owner_domain")
         notified_ids: set[str] = set(config.get("__notified_event_ids__", []))
@@ -218,7 +218,10 @@ class CalendarSource(BaseSource):
             location = event.get("location", "")
             attendees = event.get("attendees", [])
 
-            if require_physical and not _is_physical(location):
+            location_kind = flt.get("location_kind")
+            if location_kind == "physical" and not _is_physical(location):
+                continue
+            if location_kind == "exclude_online" and bool(_ONLINE_PATTERN.search(location or "")):
                 continue
             if require_external and not _has_external_attendee(attendees, owner_domain):
                 continue

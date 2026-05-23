@@ -8,9 +8,7 @@ sources:
     range: today
     calendar_id: primary
     filter:
-      location_kind: physical          # オンライン会議を除外
-      attendees_have_external: any     # 外部参加者あり (社外打ち合わせ)
-    owner_domain: null                 # null の場合は参加者が 1 人以上いれば外部判定
+      location_kind: exclude_online    # Zoom/Meet等のURLのみ除外。場所未設定の予定は通す
 prompt:
   task_md: prompts/departure-time.md
   standing_order_md: prompts/standing-order.md

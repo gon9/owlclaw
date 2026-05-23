@@ -1,0 +1,16 @@
+id: travel-checklist
+description: 旅行前 D-14/7/3/1 チェックリスト通知（毎朝 8:05）
+schedule:
+  type: cron
+  expr: "5 8 * * *"           # 毎朝 8:05 JST (travel-watch の直後)
+sources: []                    # ソースなし: state の旅程情報から Claude が判断
+prompt:
+  task_md: prompts/travel-checklist.md
+  standing_order_md: prompts/standing-order.md
+state:
+  namespace: travel
+outputs:
+  - type: slack
+  - type: obsidian
+    path_template: "Travel/{trip_id}-checklist.md"
+allowed_tools: "Read,Write,WebSearch,WebFetch"

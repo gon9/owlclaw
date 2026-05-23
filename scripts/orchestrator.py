@@ -335,6 +335,23 @@ def main() -> None:
         yaml.dump(profile, allow_unicode=True), encoding="utf-8"
     )
 
+    # travel-checklist 向け: context.md (D-N 判定済み旅程一覧) を生成
+    if task_id == "travel-checklist":
+        from tools.travel import build_context_md, get_pending_checklists
+        trips = current_state.get("trips", {})
+        pending = get_pending_checklists(trips, now.astimezone(JST).date())
+        if not pending:
+            print(
+                f"=== [{task_id}] 本日 D-N 対象旅程なし — スキップ ===",
+                file=sys.stderr,
+            )
+            state_mod.save(task["state"]["namespace"], current_state)
+            return
+        (task_dir / "context.md").write_text(
+            build_context_md(trips, now.astimezone(JST).date()),
+            encoding="utf-8",
+        )
+
     step_claude = 4 if scoring_cfg.get("enabled") else 3
     print(f"=== [{task_id}] {step_claude}/{steps} claude --print ===", file=sys.stderr)
     allowed_tools = task.get("allowed_tools", "Read,Write")
@@ -345,13 +362,16 @@ def main() -> None:
     print(f"=== [{task_id}] {step_out}/{steps} outputs dispatch ===", file=sys.stderr)
     _dispatch_outputs(task, task_dir, date)
 
-    # state 更新: last_run + last_seen_per_source + seen_email_ids をマージ
+    # state 更新: last_run + last_seen_per_source + seen_email_ids + notified_event_ids をマージ
     current_state["last_run"] = now.isoformat()
     last_seen_updates: dict[str, str] = {}
     new_seen_ids: list[str] = []
+    new_notified_ids: list[str] = []
     for key, value in all_latest_seen.items():
         if key == "__gmail_seen_ids__" and isinstance(value, list):
             new_seen_ids.extend(value)
+        elif key == "__calendar_notified_ids__" and isinstance(value, list):
+            new_notified_ids.extend(value)
         else:
             last_seen_updates[key] = value
     if last_seen_updates:
@@ -362,6 +382,24 @@ def main() -> None:
     if new_seen_ids:
         existing_ids: set[str] = set(current_state.get("seen_email_ids", []))
         current_state["seen_email_ids"] = list(existing_ids | set(new_seen_ids))
+    if new_notified_ids:
+        existing_notified: set[str] = set(current_state.get("notified_event_ids", []))
+        current_state["notified_event_ids"] = list(existing_notified | set(new_notified_ids))
+    # travel: trips_update.json をマージ
+    trips_update_path = task_dir / "trips_update.json"
+    if trips_update_path.exists() and trips_update_path.stat().st_size > 0:
+        from tools.travel import merge_trips
+        try:
+            updates = json.loads(trips_update_path.read_text(encoding="utf-8"))
+            current_state["trips"] = merge_trips(
+                current_state.get("trips", {}), updates
+            )
+            print(
+                f"✓ trips_update: {list(updates.keys())} をマージしました",
+                file=sys.stderr,
+            )
+        except Exception as e:
+            print(f"Warning: trips_update.json のマージ失敗: {e}", file=sys.stderr)
     state_mod.save(task["state"]["namespace"], current_state)
 
     print(f"=== [{task_id}] 完了 ({date}) ===", file=sys.stderr)
