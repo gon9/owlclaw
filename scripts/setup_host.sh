@@ -18,6 +18,7 @@ warn() { echo "[setup] WARNING: $*" >&2; }
 # ────────────────────────────────────────────
 log "スリープ設定を無効化..."
 sudo pmset -a sleep 0 disablesleep 1 hibernatemode 0 displaysleep 0
+# sudo が不要な操作はここ以降ユーザー権限で実行される
 
 # ────────────────────────────────────────────
 # 2. nvm + Node.js
@@ -205,14 +206,19 @@ cat > "$AGENTS_DIR/com.gon9a.owlclaw-daily-digest.plist" << PLIST
 PLIST
 
 # ────────────────────────────────────────────
-# 13. launchd 登録 (既存はアンロードしてから再ロード)
+# 13. launchd 登録 (ユーザー権限で実行すること — sudo 不要)
 # ────────────────────────────────────────────
 mkdir -p "$INSTALL_DIR/tmp"
-for label in com.gon9a.caffeinate com.gon9a.unlock-keychain com.gon9a.owlclaw-daily-digest; do
-  launchctl unload "$AGENTS_DIR/$label.plist" 2>/dev/null || true
-  launchctl load "$AGENTS_DIR/$label.plist"
-  log "launchd: $label 登録完了"
-done
+if [[ "$(id -u)" == "0" ]]; then
+  warn "launchd の登録は sudo なしで実行してください。スキップします。"
+  warn "  bash scripts/setup_host.sh を sudo なしで再実行してください。"
+else
+  for label in com.gon9a.caffeinate com.gon9a.unlock-keychain com.gon9a.owlclaw-daily-digest; do
+    launchctl unload "$AGENTS_DIR/$label.plist" 2>/dev/null || true
+    launchctl load "$AGENTS_DIR/$label.plist"
+    log "launchd: $label 登録完了"
+  done
+fi
 
 # ────────────────────────────────────────────
 # 完了
