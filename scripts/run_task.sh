@@ -29,5 +29,12 @@ if [[ -n "$NVM_NODE_BIN" ]]; then
   export PATH="$NVM_NODE_BIN:$PATH"
 fi
 
+# macOS Keychain をアンロック（Claude Code の認証情報取得に必要）
+KEYCHAIN_PASS_FILE="$HOME/.keychain_pass"
+if [[ -f "$KEYCHAIN_PASS_FILE" ]]; then
+  security unlock-keychain -p "$(cat "$KEYCHAIN_PASS_FILE")" \
+    "$HOME/Library/Keychains/login.keychain-db" 2>/dev/null || true
+fi
+
 UV="${UV:-$HOME/.local/bin/uv}"
 "$UV" run --directory "$PROJ" python "$PROJ/scripts/orchestrator.py" "$TASK_ID"
