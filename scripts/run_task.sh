@@ -23,5 +23,11 @@ if [[ -z "$TASK_ID" ]]; then
 fi
 
 echo "=== owlclaw: run_task $TASK_ID ==="
+# NVM node bin を PATH に追加（SSH/launchd 非インタラクティブ対策）
+NVM_NODE_BIN="$(ls -d "$HOME"/.nvm/versions/node/*/bin 2>/dev/null | sort -V | tail -1)"
+if [[ -n "$NVM_NODE_BIN" ]]; then
+  export PATH="$NVM_NODE_BIN:$PATH"
+fi
+
 UV="${UV:-$HOME/.local/bin/uv}"
 "$UV" run --directory "$PROJ" python "$PROJ/scripts/orchestrator.py" "$TASK_ID"
