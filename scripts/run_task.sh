@@ -23,4 +23,5 @@ if [[ -z "$TASK_ID" ]]; then
 fi
 
 echo "=== owlclaw: run_task $TASK_ID ==="
-uv run --directory "$PROJ" python "$PROJ/scripts/orchestrator.py" "$TASK_ID"
+UV="${UV:-$HOME/.local/bin/uv}"
+"$UV" run --directory "$PROJ" python "$PROJ/scripts/orchestrator.py" "$TASK_ID"
