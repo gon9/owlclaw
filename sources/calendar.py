@@ -4,7 +4,9 @@ owlclaw: Google Calendar ソースプラグイン。
 Google Calendar API を使い、指定期間のイベントを取得して Markdown に変換する。
 物理開催フィルタ・外部参加者フィルタ・重複通知抑止をサポート。
 
-初回認証には scripts/auth_calendar.py を先に実行しておく必要がある。
+認証方式:
+- サービスアカウント（推奨）: secrets/calendar_sa.json を配置する。headless 環境で失効なし。
+- OAuth（フォールバック）: scripts/auth_calendar.py で初回認証。テストモードでは 7 日で失効。
 """
 
 from __future__ import annotations
@@ -19,6 +21,7 @@ from sources.base import BaseSource
 PROJ = Path(__file__).parent.parent
 JST = timezone(datetime.now(UTC).astimezone().utcoffset())
 
+SA_PATH = PROJ / "secrets" / "calendar_sa.json"
 CREDS_PATH = PROJ / "secrets" / "calendar_oauth.json"
 TOKEN_PATH = PROJ / "secrets" / "calendar_token.json"
 SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
@@ -30,10 +33,18 @@ _ONLINE_PATTERN = re.compile(
 
 
 def _build_service():
-    """OAuth 認証して Calendar API サービスオブジェクトを返す。"""
+    """サービスアカウント（優先）または OAuth で Calendar API サービスオブジェクトを返す。"""
+    from googleapiclient.discovery import build
+
+    if SA_PATH.exists():
+        from google.oauth2 import service_account
+        creds = service_account.Credentials.from_service_account_file(
+            str(SA_PATH), scopes=SCOPES
+        )
+        return build("calendar", "v3", credentials=creds)
+
     from google.auth.transport.requests import Request
     from google.oauth2.credentials import Credentials
-    from googleapiclient.discovery import build
 
     creds = None
     if TOKEN_PATH.exists():
@@ -45,9 +56,9 @@ def _build_service():
             TOKEN_PATH.write_text(creds.to_json(), encoding="utf-8")
         else:
             raise RuntimeError(
-                f"Calendar トークンが存在しないか期限切れです。"
-                f"先に `uv run python scripts/auth_calendar.py` を実行してください。"
-                f"（トークンパス: {TOKEN_PATH}）"
+                "Calendar 認証情報がありません。"
+                "`secrets/calendar_sa.json`（サービスアカウント）または "
+                "`uv run python scripts/auth_calendar.py`（OAuth）で設定してください。"
             )
 
     return build("calendar", "v3", credentials=creds)
