@@ -216,7 +216,7 @@ _make_task_plist "travel-watch"     8  0
 _make_task_plist "travel-checklist" 8  5
 _make_task_plist "twitter-digest"   8 10
 _make_task_plist "birthday-month"   8  0  "<key>Day</key><integer>1</integer>"
-_make_task_plist "daily-digest"     9  0
+_make_task_plist "daily-digest"     7  0
 _make_task_plist "blog-watch"       9  0  "<key>Weekday</key><integer>1</integer>"
 _make_task_plist "arxiv-digest"    10  0
 _make_task_plist "visit-briefing"  20  0
