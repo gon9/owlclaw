@@ -199,6 +199,12 @@ def _build_claude_prompt(task: dict, task_dir: Path) -> str:
             f"{step}. Write `{task_dir / 'slack.txt'}` にSlackメッセージを書く"
             " （新着なければ何も書かない）"
         )
+        step += 1
+    if "video" in outputs:
+        lines.append(
+            f"{step}. Write `{task_dir / 'slides.json'}` に動画台本（slides.jsonスキーマ準拠）"
+            "を書く"
+        )
     lines += ["", "完了したら '完了' とだけ出力してください。"]
     return "\n".join(lines)
 
@@ -236,8 +242,66 @@ def _dispatch_outputs(task: dict, task_dir: Path, date: str) -> None:
                 ["bash", str(scripts_dir / "slack_notify.sh"), str(slack_path)],
                 check=True,
             )
+        elif out_type == "video":
+            _dispatch_video_output(output, task_dir, date)
         else:
             print(f"Warning: 未対応の output タイプ: {out_type}", file=sys.stderr)
+
+
+def _dispatch_video_output(output: dict, task_dir: Path, date: str) -> None:
+    """動画出力ディスパッチャ。slides.json から MP4 を生成する。
+
+    Parameters
+    ----------
+    output : dict
+        task.outputs の 1 要素（type=video）
+    task_dir : Path
+        当該タスクの作業ディレクトリ（slides.json が配置済み）
+    date : str
+        実行日（YYYY-MM-DD）
+    """
+    slides_json = task_dir / "slides.json"
+    if not slides_json.exists() or slides_json.stat().st_size == 0:
+        print("  slides.json なし/空 — 動画生成スキップ", file=sys.stderr)
+        return
+
+    slides_dir = task_dir / "slides"
+    audio_dir = task_dir / "audio"
+    out_mp4 = task_dir / f"digest_{date.replace('-', '')}.mp4"
+
+    scripts_dir = PROJ / "scripts"
+    uv = subprocess.check_output(["which", "uv"], text=True).strip() or "uv"
+    print(f"  動画生成: {out_mp4}", file=sys.stderr)
+    subprocess.run(
+        [uv, "run", "--directory", str(PROJ), "python",
+         str(scripts_dir / "render_slides.py"), str(slides_json), str(slides_dir)],
+        check=True,
+    )
+    subprocess.run(
+        [uv, "run", "--directory", str(PROJ), "python",
+         str(scripts_dir / "render_audio.py"), str(slides_json), str(audio_dir)],
+        check=True,
+    )
+    subprocess.run(
+        [uv, "run", "--directory", str(PROJ), "python",
+         str(scripts_dir / "compose_video.py"), str(slides_json),
+         str(slides_dir), str(audio_dir), str(out_mp4)],
+        check=True,
+    )
+
+    # Slack 通知（mp4 のローカルパスのみ）
+    if output.get("slack_notify"):
+        slack_msg = (
+            f":movie_camera: *動画ダイジェスト生成完了* `{date}`\n"
+            f":file_folder: `{out_mp4}`\n"
+            f":memo: `open '{out_mp4}'` で再生"
+        )
+        slack_txt = task_dir / "slack_video.txt"
+        slack_txt.write_text(slack_msg, encoding="utf-8")
+        subprocess.run(
+            ["bash", str(scripts_dir / "slack_notify.sh"), str(slack_txt)],
+            check=False,  # Slack 失敗で動画は守る
+        )
 
 
 def main() -> None:
