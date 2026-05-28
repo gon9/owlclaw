@@ -182,14 +182,26 @@ def _build_claude_prompt(task: dict, task_dir: Path) -> str:
     standing_md = PROJ / task["prompt"].get("standing_order_md", "prompts/standing-order.md")
     outputs = {o["type"] for o in task.get("outputs", [])}
 
+    # 入力ファイル名は input.file 指定があればそれを優先
+    input_cfg: dict = task.get("input") or {}
+    input_file = input_cfg.get("file", "events.md")
+
     lines = [
         "以下を順番に実行してください。",
         "",
-        f"1. Read `{task_dir / 'events.md'}` (入力イベント一覧)",
+        f"1. Read `{task_dir / input_file}` (入力イベント一覧)",
         f"2. Read `{task_dir / 'profile.yaml'}` (ユーザープロファイル)",
         f"3. Read `{standing_md}` の共通ルールを確認",
         f"4. Read `{task_md}` の指示に従いキュレーション・要約",
     ]
+
+    # video.top_n が定義されていれば Claude にピックアップ件数を明示
+    video_cfg: dict = task.get("video") or {}
+    if "top_n" in video_cfg:
+        lines.append(
+            f"   ※ このタスクでは **top_n = {video_cfg['top_n']}** 件を選定して"
+            "動画スライドに変換すること"
+        )
     step = 5
     if "obsidian" in outputs:
         lines.append(f"{step}. Write `{task_dir / 'note_draft.md'}` にObsidianノート本文を書く")
@@ -365,6 +377,7 @@ def main() -> None:
 
     print(f"=== [{task_id}] 1/4 sources fetch ===", file=sys.stderr)
     src_list = task.get("sources") or []
+    input_cfg: dict = task.get("input") or {}
     all_latest_seen: dict[str, str] = {}
     if src_list:
         events_parts = []
@@ -373,13 +386,33 @@ def main() -> None:
             events_parts.append(md)
             all_latest_seen.update(latest_seen)
         events_md = "\n".join(events_parts)
+        (task_dir / "events.md").write_text(events_md, encoding="utf-8")
+    elif input_cfg.get("from_task"):
+        # 別タスクの成果物を入力として読み込む（例: video-digest が daily-digest を取り込む）
+        src_task = input_cfg["from_task"]
+        src_file = input_cfg.get("file", "note_draft.md")
+        src_path = PROJ / "tmp" / src_task / src_file
+        if not src_path.exists():
+            print(
+                f"Error: input source {src_path} が見つかりません。"
+                f"先に {src_task} を実行してください。",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        content = src_path.read_text(encoding="utf-8")
+        events_md = (
+            f"# 入力: {src_task} の成果物 ({src_file})\n"
+            f"# 取得元: {src_path}\n\n{content}"
+        )
+        # input.file の名前で保存（プロンプト整合）
+        (task_dir / src_file).write_text(events_md, encoding="utf-8")
     else:
         events_md = (
             f"# タスク実行コンテキスト — {date}\n\n"
             "このタスクには外部ソースがありません。\n"
             "profile.yaml を参照し、必要に応じて WebFetch で最新情報を補完してください。\n"
         )
-    (task_dir / "events.md").write_text(events_md, encoding="utf-8")
+        (task_dir / "events.md").write_text(events_md, encoding="utf-8")
 
     scoring_cfg: dict = task.get("scoring", {})
     if scoring_cfg.get("enabled"):

@@ -1,11 +1,11 @@
 id: video-digest
-description: AI ニュース動画ダイジェスト（RSS → Claude 台本 → スライド画像 + 音声 → MP4）
+description: AI ニュース動画ダイジェスト（daily-digest 成果物から top_n 件をピックして動画化）
 schedule:
   type: cron
-  expr: "30 7 * * *"           # 毎朝 7:30 JST（daily-digest の 30 分後）
-sources:
-  - type: rss
-    config_ref: config/sources.yaml
+  expr: "30 7 * * *"            # 毎朝 7:30 JST（daily-digest の 30 分後）
+input:
+  from_task: daily-digest        # 同日に実行された daily-digest の成果物を読む
+  file: note_draft.md            # 取り込むファイル名（task_dir/note_draft.md）
 prompt:
   task_md: prompts/video-script.md
   standing_order_md: prompts/standing-order.md
@@ -13,12 +13,10 @@ state:
   namespace: video-digest
 outputs:
   - type: video
-    output_subdir: owlclaw/video       # Obsidian 配下のサブディレクトリ
-    slack_notify: true                 # mp4 のローカルパスを Slack 通知
+    slack_notify: true            # mp4 のローカルパスを Slack 通知
 allowed_tools: "Read,Write"
-scoring:
-  enabled: true
-  top_n: 3                             # 動画は 3 件に絞る（短尺）
+video:
+  top_n: 1                        # ピックアップ件数（1, 3, 5 など。動画スライド数は top_n + 2: hero + N + summary）
 quiet_hours:
   start: "22:00"
   end: "07:00"
