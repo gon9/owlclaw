@@ -301,21 +301,19 @@ def _dispatch_video_output(output: dict, task_dir: Path, date: str) -> None:
     out_mp4 = task_dir / f"digest_{date.replace('-', '')}.mp4"
 
     scripts_dir = PROJ / "scripts"
-    uv = subprocess.check_output(["which", "uv"], text=True).strip() or "uv"
+    # 既に uv 環境内で実行中なので sys.executable (.venv の python) を直接使う
+    py = sys.executable
     print(f"  動画生成: {out_mp4}", file=sys.stderr)
     subprocess.run(
-        [uv, "run", "--directory", str(PROJ), "python",
-         str(scripts_dir / "render_slides.py"), str(slides_json), str(slides_dir)],
+        [py, str(scripts_dir / "render_slides.py"), str(slides_json), str(slides_dir)],
         check=True,
     )
     subprocess.run(
-        [uv, "run", "--directory", str(PROJ), "python",
-         str(scripts_dir / "render_audio.py"), str(slides_json), str(audio_dir)],
+        [py, str(scripts_dir / "render_audio.py"), str(slides_json), str(audio_dir)],
         check=True,
     )
     subprocess.run(
-        [uv, "run", "--directory", str(PROJ), "python",
-         str(scripts_dir / "compose_video.py"), str(slides_json),
+        [py, str(scripts_dir / "compose_video.py"), str(slides_json),
          str(slides_dir), str(audio_dir), str(out_mp4)],
         check=True,
     )
