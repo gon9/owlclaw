@@ -182,14 +182,26 @@ def _build_claude_prompt(task: dict, task_dir: Path) -> str:
     standing_md = PROJ / task["prompt"].get("standing_order_md", "prompts/standing-order.md")
     outputs = {o["type"] for o in task.get("outputs", [])}
 
+    # 入力ファイル名は input.file 指定があればそれを優先
+    input_cfg: dict = task.get("input") or {}
+    input_file = input_cfg.get("file", "events.md")
+
     lines = [
         "以下を順番に実行してください。",
         "",
-        f"1. Read `{task_dir / 'events.md'}` (入力イベント一覧)",
+        f"1. Read `{task_dir / input_file}` (入力イベント一覧)",
         f"2. Read `{task_dir / 'profile.yaml'}` (ユーザープロファイル)",
         f"3. Read `{standing_md}` の共通ルールを確認",
         f"4. Read `{task_md}` の指示に従いキュレーション・要約",
     ]
+
+    # video.top_n が定義されていれば Claude にピックアップ件数を明示
+    video_cfg: dict = task.get("video") or {}
+    if "top_n" in video_cfg:
+        lines.append(
+            f"   ※ このタスクでは **top_n = {video_cfg['top_n']}** 件を選定して"
+            "動画スライドに変換すること"
+        )
     step = 5
     if "obsidian" in outputs:
         lines.append(f"{step}. Write `{task_dir / 'note_draft.md'}` にObsidianノート本文を書く")
@@ -198,6 +210,12 @@ def _build_claude_prompt(task: dict, task_dir: Path) -> str:
         lines.append(
             f"{step}. Write `{task_dir / 'slack.txt'}` にSlackメッセージを書く"
             " （新着なければ何も書かない）"
+        )
+        step += 1
+    if "video" in outputs:
+        lines.append(
+            f"{step}. Write `{task_dir / 'slides.json'}` に動画台本（slides.jsonスキーマ準拠）"
+            "を書く"
         )
     lines += ["", "完了したら '完了' とだけ出力してください。"]
     return "\n".join(lines)
@@ -236,8 +254,85 @@ def _dispatch_outputs(task: dict, task_dir: Path, date: str) -> None:
                 ["bash", str(scripts_dir / "slack_notify.sh"), str(slack_path)],
                 check=True,
             )
+        elif out_type == "video":
+            _dispatch_video_output(output, task_dir, date)
         else:
             print(f"Warning: 未対応の output タイプ: {out_type}", file=sys.stderr)
+
+
+def _purge_old_videos(task_dir: Path, retention_days: int) -> int:
+    """retention_days より古い digest_*.mp4 を削除し、削除件数を返す。"""
+    if retention_days <= 0:
+        return 0
+    cutoff = datetime.now(UTC) - timedelta(days=retention_days)
+    purged = 0
+    for mp4 in task_dir.glob("digest_*.mp4"):
+        mtime = datetime.fromtimestamp(mp4.stat().st_mtime, tz=UTC)
+        if mtime < cutoff:
+            print(f"  cleanup: 古い動画を削除 ({mtime.date()}): {mp4.name}", file=sys.stderr)
+            mp4.unlink()
+            purged += 1
+    return purged
+
+
+def _dispatch_video_output(output: dict, task_dir: Path, date: str) -> None:
+    """動画出力ディスパッチャ。slides.json から MP4 を生成する。
+
+    Parameters
+    ----------
+    output : dict
+        task.outputs の 1 要素（type=video）
+    task_dir : Path
+        当該タスクの作業ディレクトリ（slides.json が配置済み）
+    date : str
+        実行日（YYYY-MM-DD）
+    """
+    slides_json = task_dir / "slides.json"
+    if not slides_json.exists() or slides_json.stat().st_size == 0:
+        print("  slides.json なし/空 — 動画生成スキップ", file=sys.stderr)
+        return
+
+    # 古い動画を先に削除（ストレージ圧迫対策、既定: 7日）
+    retention_days = int(output.get("retention_days", 7))
+    _purge_old_videos(task_dir, retention_days)
+
+    slides_dir = task_dir / "slides"
+    audio_dir = task_dir / "audio"
+    out_mp4 = task_dir / f"digest_{date.replace('-', '')}.mp4"
+
+    scripts_dir = PROJ / "scripts"
+    uv = subprocess.check_output(["which", "uv"], text=True).strip() or "uv"
+    print(f"  動画生成: {out_mp4}", file=sys.stderr)
+    subprocess.run(
+        [uv, "run", "--directory", str(PROJ), "python",
+         str(scripts_dir / "render_slides.py"), str(slides_json), str(slides_dir)],
+        check=True,
+    )
+    subprocess.run(
+        [uv, "run", "--directory", str(PROJ), "python",
+         str(scripts_dir / "render_audio.py"), str(slides_json), str(audio_dir)],
+        check=True,
+    )
+    subprocess.run(
+        [uv, "run", "--directory", str(PROJ), "python",
+         str(scripts_dir / "compose_video.py"), str(slides_json),
+         str(slides_dir), str(audio_dir), str(out_mp4)],
+        check=True,
+    )
+
+    # Slack 通知（mp4 のローカルパスのみ）
+    if output.get("slack_notify"):
+        slack_msg = (
+            f":movie_camera: *動画ダイジェスト生成完了* `{date}`\n"
+            f":file_folder: `{out_mp4}`\n"
+            f":memo: `open '{out_mp4}'` で再生"
+        )
+        slack_txt = task_dir / "slack_video.txt"
+        slack_txt.write_text(slack_msg, encoding="utf-8")
+        subprocess.run(
+            ["bash", str(scripts_dir / "slack_notify.sh"), str(slack_txt)],
+            check=False,  # Slack 失敗で動画は守る
+        )
 
 
 def main() -> None:
@@ -301,6 +396,7 @@ def main() -> None:
 
     print(f"=== [{task_id}] 1/4 sources fetch ===", file=sys.stderr)
     src_list = task.get("sources") or []
+    input_cfg: dict = task.get("input") or {}
     all_latest_seen: dict[str, str] = {}
     if src_list:
         events_parts = []
@@ -309,13 +405,33 @@ def main() -> None:
             events_parts.append(md)
             all_latest_seen.update(latest_seen)
         events_md = "\n".join(events_parts)
+        (task_dir / "events.md").write_text(events_md, encoding="utf-8")
+    elif input_cfg.get("from_task"):
+        # 別タスクの成果物を入力として読み込む（例: video-digest が daily-digest を取り込む）
+        src_task = input_cfg["from_task"]
+        src_file = input_cfg.get("file", "note_draft.md")
+        src_path = PROJ / "tmp" / src_task / src_file
+        if not src_path.exists():
+            print(
+                f"Error: input source {src_path} が見つかりません。"
+                f"先に {src_task} を実行してください。",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        content = src_path.read_text(encoding="utf-8")
+        events_md = (
+            f"# 入力: {src_task} の成果物 ({src_file})\n"
+            f"# 取得元: {src_path}\n\n{content}"
+        )
+        # input.file の名前で保存（プロンプト整合）
+        (task_dir / src_file).write_text(events_md, encoding="utf-8")
     else:
         events_md = (
             f"# タスク実行コンテキスト — {date}\n\n"
             "このタスクには外部ソースがありません。\n"
             "profile.yaml を参照し、必要に応じて WebFetch で最新情報を補完してください。\n"
         )
-    (task_dir / "events.md").write_text(events_md, encoding="utf-8")
+        (task_dir / "events.md").write_text(events_md, encoding="utf-8")
 
     scoring_cfg: dict = task.get("scoring", {})
     if scoring_cfg.get("enabled"):

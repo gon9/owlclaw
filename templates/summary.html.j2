@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>{{ data.headline }}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1280px; height: 720px;
+    font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+    background: linear-gradient(135deg, #f7f3ee 0%, #ffffff 100%);
+    color: #1a2e4a;
+    padding: 36px 48px;
+    display: flex; flex-direction: column;
+  }
+  .headline {
+    font-size: 36px; font-weight: 800;
+    border-left: 10px solid #e87421;
+    padding-left: 18px; line-height: 1.2;
+    margin-bottom: 24px;
+  }
+  .items {
+    flex: 1;
+    display: flex; flex-direction: column;
+    justify-content: center;
+    gap: 16px;
+  }
+  .item {
+    background: #ffffff;
+    border: 1.5px solid #d8d8d8;
+    border-left: 6px solid #1a2e4a;
+    border-radius: 4px;
+    padding: 16px 22px;
+    display: flex; align-items: center; gap: 18px;
+  }
+  .item-num {
+    font-size: 28px; font-weight: 800;
+    color: #e87421;
+    width: 48px; flex-shrink: 0;
+  }
+  .item-body { flex: 1; }
+  .item-title { font-size: 19px; font-weight: 700; color: #1a2e4a; }
+  .item-detail { font-size: 14px; color: #555; margin-top: 4px; line-height: 1.5; }
+  .closing {
+    font-size: 16px;
+    color: #1a2e4a;
+    text-align: center;
+    margin-top: 16px;
+    padding: 10px;
+    border-top: 1px solid #ccc;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+
+<div class="headline">{{ data.headline }}</div>
+
+<div class="items">
+  {% for item in data.items %}
+  <div class="item">
+    <div class="item-num">{{ "%02d"|format(loop.index) }}</div>
+    <div class="item-body">
+      <div class="item-title">{{ item.title }}</div>
+      {% if item.detail %}<div class="item-detail">{{ item.detail }}</div>{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% if data.closing %}<div class="closing">{{ data.closing }}</div>{% endif %}
+
+</body>
+</html>
