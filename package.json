@@ -1,0 +1,8 @@
+{
+  "name": "owlclaw",
+  "private": true,
+  "description": "Node dependencies for owlclaw video pipeline (Puppeteer for HTML→PNG slide rendering)",
+  "dependencies": {
+    "puppeteer": "^24.0.0"
+  }
+}
