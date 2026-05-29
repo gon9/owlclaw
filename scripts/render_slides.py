@@ -30,6 +30,24 @@ from tools.slide_schema import (  # noqa: E402
 )
 
 
+def _find_executable(name: str) -> str:
+    """PATH に無い launchd/SSH 環境でも見つかるように、代表的な場所を探す。"""
+    import os as _os  # noqa: PLC0415
+    import shutil as _shutil  # noqa: PLC0415
+    found = _shutil.which(name)
+    if found:
+        return found
+    extra = [
+        f"{_os.path.expanduser('~')}/.local/bin/{name}",
+        f"/opt/homebrew/bin/{name}",
+        f"/usr/local/bin/{name}",
+    ]
+    for p in extra:
+        if _os.path.exists(p) and _os.access(p, _os.X_OK):
+            return p
+    raise RuntimeError(f"executable not found: {name} (PATH と {extra} を確認)")
+
+
 def _render_image_slide(slide: HeroSlide, out_png: Path) -> None:
     """gpt-image-2 (Codex CLI) で画像を生成して指定パスに保存する。"""
     prompt = (
@@ -38,11 +56,12 @@ def _render_image_slide(slide: HeroSlide, out_png: Path) -> None:
         "Use 1280x720 resolution. Do not write any other files."
     )
     print(f"  [{slide.id}] Codex CLI で画像生成中...", file=sys.stderr)
+    codex_bin = _find_executable("codex")
     log_path = out_png.with_suffix(".codex.log")
     with log_path.open("w", encoding="utf-8") as logf:
         subprocess.run(
             [
-                "codex",
+                codex_bin,
                 "exec",
                 "--skip-git-repo-check",
                 "--sandbox",
@@ -68,9 +87,10 @@ def _render_html_slide(
     html_path = out_png.with_suffix(".html")
     html_path.write_text(html, encoding="utf-8")
     print(f"  [{slide.id}] HTML テンプレ → Puppeteer で PNG 化", file=sys.stderr)
+    node_bin = _find_executable("node")
     subprocess.run(
         [
-            "node",
+            node_bin,
             str(PROJ / "scripts" / "render_html.js"),
             str(html_path),
             str(out_png),

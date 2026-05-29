@@ -23,11 +23,28 @@ from tools.slide_schema import SlideDeck, load_deck  # noqa: E402
 PAD_SECONDS = 0.5  # 各スライド末尾に挿入する無音の余韻
 
 
+def _find_executable(name: str) -> str:
+    """PATH に無い launchd/SSH 環境でも見つかるように、代表的な場所を探す。"""
+    import os as _os  # noqa: PLC0415
+    found = shutil.which(name)
+    if found:
+        return found
+    extra = [
+        f"{_os.path.expanduser('~')}/.local/bin/{name}",
+        f"/opt/homebrew/bin/{name}",
+        f"/usr/local/bin/{name}",
+    ]
+    for p in extra:
+        if _os.path.exists(p) and _os.access(p, _os.X_OK):
+            return p
+    raise RuntimeError(f"executable not found: {name} (PATH と {extra} を確認)")
+
+
 def _segment_duration(wav_path: Path) -> float:
     """ffprobe で WAV の長さ（秒）を取得する。"""
     out = subprocess.check_output(
         [
-            "ffprobe",
+            _find_executable("ffprobe"),
             "-v",
             "error",
             "-show_entries",
@@ -46,7 +63,7 @@ def _build_segment_mp4(png: Path, wav: Path, out_mp4: Path) -> None:
     duration = _segment_duration(wav) + PAD_SECONDS
     subprocess.run(
         [
-            "ffmpeg",
+            _find_executable("ffmpeg"),
             "-y",
             "-loglevel",
             "warning",
@@ -107,7 +124,7 @@ def compose(deck: SlideDeck, slides_dir: Path, audio_dir: Path, out_mp4: Path) -
     print(f"  concat → {out_mp4}", file=sys.stderr)
     subprocess.run(
         [
-            "ffmpeg",
+            _find_executable("ffmpeg"),
             "-y",
             "-loglevel",
             "warning",
