@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -122,6 +123,9 @@ def compose(deck: SlideDeck, slides_dir: Path, audio_dir: Path, out_mp4: Path) -
         ],
         check=True,
     )
+    # concat 成功後、中間ファイル _segments/ を削除（容量節約）
+    shutil.rmtree(work_dir, ignore_errors=True)
+    print(f"  cleanup: {work_dir} を削除", file=sys.stderr)
     return out_mp4
 
 

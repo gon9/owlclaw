@@ -260,6 +260,21 @@ def _dispatch_outputs(task: dict, task_dir: Path, date: str) -> None:
             print(f"Warning: 未対応の output タイプ: {out_type}", file=sys.stderr)
 
 
+def _purge_old_videos(task_dir: Path, retention_days: int) -> int:
+    """retention_days より古い digest_*.mp4 を削除し、削除件数を返す。"""
+    if retention_days <= 0:
+        return 0
+    cutoff = datetime.now(UTC) - timedelta(days=retention_days)
+    purged = 0
+    for mp4 in task_dir.glob("digest_*.mp4"):
+        mtime = datetime.fromtimestamp(mp4.stat().st_mtime, tz=UTC)
+        if mtime < cutoff:
+            print(f"  cleanup: 古い動画を削除 ({mtime.date()}): {mp4.name}", file=sys.stderr)
+            mp4.unlink()
+            purged += 1
+    return purged
+
+
 def _dispatch_video_output(output: dict, task_dir: Path, date: str) -> None:
     """動画出力ディスパッチャ。slides.json から MP4 を生成する。
 
@@ -276,6 +291,10 @@ def _dispatch_video_output(output: dict, task_dir: Path, date: str) -> None:
     if not slides_json.exists() or slides_json.stat().st_size == 0:
         print("  slides.json なし/空 — 動画生成スキップ", file=sys.stderr)
         return
+
+    # 古い動画を先に削除（ストレージ圧迫対策、既定: 7日）
+    retention_days = int(output.get("retention_days", 7))
+    _purge_old_videos(task_dir, retention_days)
 
     slides_dir = task_dir / "slides"
     audio_dir = task_dir / "audio"
