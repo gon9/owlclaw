@@ -63,11 +63,49 @@ class SummaryData(BaseModel):
         return v
 
 
-class HeroSlide(BaseModel):
-    """`type=hero` または `type=concept` のスライド。gpt-image-2 で生成。"""
+class ExhibitFigure(BaseModel):
+    """Exhibit内の1つの図解要素（左図・中図・右図など）"""
+
+    title: str = Field(description="図のタイトル")
+    icon: str = Field(default="", description="アイコン名（例: hand-drawn scale, gauge, mountain）")
+    value: str = Field(default="", description="強調する数字や短いテキスト")
+    caption: str = Field(default="", description="図の補足説明")
+
+
+class ExhibitTableRow(BaseModel):
+    """比較テーブルの1行"""
+
+    header: str = Field(description="行の見出し")
+    col1: str = Field(description="列1のデータ")
+    col2: str = Field(description="列2のデータ")
+
+
+class ExhibitTable(BaseModel):
+    """比較テーブルデータ"""
+
+    col1_header: str = Field(description="列1の見出し")
+    col2_header: str = Field(description="列2の見出し")
+    rows: list[ExhibitTableRow] = Field(description="行データ配列")
+
+
+class ExhibitData(BaseModel):
+    """`type=data` + `template=exhibit` のデータ部。content-richな構造。"""
+
+    headline: str = Field(description="スライド大見出し")
+    subtitle: str = Field(default="", description="サブ段落（リード文）")
+    left_fig: ExhibitFigure | None = Field(default=None, description="左図（メタファー・数字）")
+    middle_fig: ExhibitFigure | None = Field(default=None, description="中図（メタファー・数字）")
+    right_fig: ExhibitFigure | None = Field(default=None, description="右図（メタファー・数字）")
+    table: ExhibitTable | None = Field(default=None, description="比較テーブル")
+    insight_bar: str = Field(default="", description="下部の示唆バー（Insight bar）")
+    source: str = Field(default="", description="出典")
+
+
+class ImageSlide(BaseModel):
+    """`type=hero`, `concept`, `closing` のスライド。gpt-image-2 で生成。"""
 
     id: str = Field(description="スライドID（例: seg1）")
-    type: Literal["hero", "concept"]
+    type: Literal["hero", "concept", "closing"]
     image_prompt: str = Field(description="gpt-image-2 用の英語プロンプト")
     narration: str = Field(description="ナレーション原稿（日本語）")
 
@@ -94,7 +132,17 @@ class SummarySlide(BaseModel):
     narration: str = Field(description="ナレーション原稿（日本語）")
 
 
-Slide = HeroSlide | DataSlide | SummarySlide
+class ExhibitSlide(BaseModel):
+    """`type=data` のスライドで Exhibit テンプレートを使用"""
+
+    id: str = Field(description="スライドID（例: seg3）")
+    type: Literal["data"] = "data"
+    template: Literal["exhibit"] = Field(description="使用する HTML テンプレート名")
+    data: ExhibitData
+    narration: str = Field(description="ナレーション原稿（日本語）")
+
+
+Slide = ImageSlide | DataSlide | ExhibitSlide | SummarySlide
 
 
 class SlideDeck(BaseModel):
