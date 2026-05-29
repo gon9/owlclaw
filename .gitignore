@@ -9,3 +9,6 @@ __pycache__/
 *.pyc
 node_modules/
 package-lock.json
+.claude/launch.json
+.claude/worktrees/
+*.db

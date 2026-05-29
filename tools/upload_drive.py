@@ -40,7 +40,7 @@ def _build_service():
             TOKEN_PATH.write_text(creds.to_json(), encoding="utf-8")
         else:
             raise RuntimeError(
-                "Drive token が失効しました。再度 `uv run python scripts/auth_drive.py` を実行してください。"
+                "Drive token が失効。 `uv run python scripts/auth_drive.py` を再実行してください。"
             )
 
     return build("drive", "v3", credentials=creds, cache_discovery=False)
