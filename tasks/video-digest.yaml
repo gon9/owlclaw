@@ -13,7 +13,9 @@ state:
   namespace: video-digest
 outputs:
   - type: video
-    slack_notify: true            # mp4 のローカルパスを Slack 通知
+    slack_notify: true            # 完成通知を Slack に投稿 (Drive URL 含む)
+    drive_upload: true            # Google Drive にアップロード + 共有リンク取得
+    drive_folder: "owlclaw/video-digest"  # Drive 上の保存先 (階層 OK)
     retention_days: 7             # 古い digest_*.mp4 は N 日経過で自動削除
 allowed_tools: "Read,Write"
 video:

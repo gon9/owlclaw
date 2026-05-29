@@ -318,13 +318,33 @@ def _dispatch_video_output(output: dict, task_dir: Path, date: str) -> None:
         check=True,
     )
 
-    # Slack 通知（mp4 のローカルパスのみ）
+    # Google Drive upload (オプション)
+    drive_url: str | None = None
+    if output.get("drive_upload"):
+        try:
+            from tools.upload_drive import upload_to_drive  # noqa: PLC0415
+            folder = output.get("drive_folder", "owlclaw/video-digest")
+            print(f"  Drive upload: {out_mp4.name} → {folder}/", file=sys.stderr)
+            result = upload_to_drive(out_mp4, folder_path=folder)
+            drive_url = result.get("webViewLink")
+            print(f"  Drive URL: {drive_url}", file=sys.stderr)
+        except Exception as e:  # noqa: BLE001
+            print(f"  Warning: Drive upload 失敗: {e}", file=sys.stderr)
+
+    # Slack 通知
     if output.get("slack_notify"):
-        slack_msg = (
-            f":movie_camera: *動画ダイジェスト生成完了* `{date}`\n"
-            f":file_folder: `{out_mp4}`\n"
-            f":memo: `open '{out_mp4}'` で再生"
-        )
+        if drive_url:
+            slack_msg = (
+                f":movie_camera: *動画ダイジェスト生成完了* `{date}`\n"
+                f":link: <{drive_url}|Google Drive で再生>\n"
+                f":file_folder: `{out_mp4.name}`"
+            )
+        else:
+            slack_msg = (
+                f":movie_camera: *動画ダイジェスト生成完了* `{date}`\n"
+                f":file_folder: `{out_mp4}`\n"
+                f":memo: `open '{out_mp4}'` で再生"
+            )
         slack_txt = task_dir / "slack_video.txt"
         slack_txt.write_text(slack_msg, encoding="utf-8")
         subprocess.run(
