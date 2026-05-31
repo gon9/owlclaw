@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    :root {
+      --bg-color: #f8f9fa;
+      --text-color: #202124;
+      --accent-color: #1a73e8;
+      --border-color: #dadce0;
+      --table-header-bg: #e8f0fe;
+    }
+    body {
+      margin: 0;
+      padding: 40px;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      width: 1920px;
+      height: 1080px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      margin-bottom: 30px;
+    }
+    h1 {
+      font-size: 64px;
+      margin: 0 0 10px 0;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    .subtitle {
+      font-size: 32px;
+      color: #5f6368;
+      margin: 0;
+    }
+    .grid-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: auto 1fr;
+      gap: 30px;
+      flex-grow: 1;
+    }
+    .fig-card {
+      background: white;
+      border: 2px solid var(--border-color);
+      border-radius: 16px;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .fig-title {
+      font-size: 28px;
+      font-weight: bold;
+      color: var(--accent-color);
+      margin-bottom: 20px;
+    }
+    .fig-icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+      opacity: 0.8;
+    }
+    .fig-value {
+      font-size: 72px;
+      font-weight: 900;
+      margin-bottom: 15px;
+    }
+    .fig-caption {
+      font-size: 24px;
+      color: #5f6368;
+    }
+    .table-container {
+      grid-column: span 3;
+      background: white;
+      border: 2px solid var(--border-color);
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 28px;
+    }
+    th, td {
+      padding: 20px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+    th {
+      background-color: var(--table-header-bg);
+      color: var(--accent-color);
+      font-weight: bold;
+    }
+    .insight-bar {
+      margin-top: 30px;
+      background: var(--accent-color);
+      color: white;
+      font-size: 36px;
+      font-weight: bold;
+      padding: 25px 40px;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(26,115,232,0.3);
+    }
+    .footer {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 20px;
+      font-size: 20px;
+      color: #80868b;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>{{ data.headline }}</h1>
+    {% if data.subtitle %}
+    <div class="subtitle">{{ data.subtitle }}</div>
+    {% endif %}
+  </div>
+
+  <div class="grid-container">
+    {% if data.left_fig %}
+    <div class="fig-card">
+      <div class="fig-title">{{ data.left_fig.title }}</div>
+      {% if data.left_fig.icon %}<div class="fig-icon">[{{ data.left_fig.icon }}]</div>{% endif %}
+      <div class="fig-value">{{ data.left_fig.value }}</div>
+      <div class="fig-caption">{{ data.left_fig.caption }}</div>
+    </div>
+    {% endif %}
+
+    {% if data.middle_fig %}
+    <div class="fig-card">
+      <div class="fig-title">{{ data.middle_fig.title }}</div>
+      {% if data.middle_fig.icon %}<div class="fig-icon">[{{ data.middle_fig.icon }}]</div>{% endif %}
+      <div class="fig-value">{{ data.middle_fig.value }}</div>
+      <div class="fig-caption">{{ data.middle_fig.caption }}</div>
+    </div>
+    {% endif %}
+
+    {% if data.right_fig %}
+    <div class="fig-card">
+      <div class="fig-title">{{ data.right_fig.title }}</div>
+      {% if data.right_fig.icon %}<div class="fig-icon">[{{ data.right_fig.icon }}]</div>{% endif %}
+      <div class="fig-value">{{ data.right_fig.value }}</div>
+      <div class="fig-caption">{{ data.right_fig.caption }}</div>
+    </div>
+    {% endif %}
+
+    {% if data.table %}
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th>{{ data.table.col1_header }}</th>
+            <th>{{ data.table.col2_header }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in data.table.rows %}
+          <tr>
+            <td style="font-weight: bold; color: var(--accent-color);">{{ row.header }}</td>
+            <td>{{ row.col1 }}</td>
+            <td>{{ row.col2 }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if data.insight_bar %}
+  <div class="insight-bar">
+    {{ data.insight_bar }}
+  </div>
+  {% endif %}
+
+  {% if data.source %}
+  <div class="footer">
+    Source: {{ data.source }}
+  </div>
+  {% endif %}
+</body>
+</html>
