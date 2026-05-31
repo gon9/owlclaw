@@ -12,3 +12,5 @@ package-lock.json
 .claude/launch.json
 .claude/worktrees/
 *.db
+.DS_Store
+.antigravitycli/
