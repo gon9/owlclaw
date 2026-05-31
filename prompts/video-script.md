@@ -36,6 +36,7 @@
 1. **オープニング** (`type: hero`)
    - id: `seg1`
    - ニューススタジオ風画像（gpt-image-2）
+   - **必ず「アウルクロウ（フクロウ）」のモチーフやサイバーなロゴをプロンプトに含めること**
    - ナレーション: 番組挨拶 + 本日の予告（5-7秒）
 
 2 〜 (top_n + 1). **ニューススライド（記事ごとに最適なフォーマットを選択）**
@@ -80,7 +81,7 @@
     {
       "id": "seg1",
       "type": "hero",
-      "image_prompt": "A modern AI newsroom scene with holographic display...",
+      "image_prompt": "A modern AI newsroom scene with a glowing cybernetic owl logo prominently displayed on the main holographic screen, cinematic lighting, blue and white palette, professional broadcast aesthetic, 16:9, no text on screen",
       "narration": "おはようございます。アウルクロウ NEWS です。"
     },
     {
