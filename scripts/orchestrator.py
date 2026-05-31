@@ -233,6 +233,18 @@ def _invoke_claude(prompt: str, allowed_tools: str = "Read,Write") -> None:
     )
 
 
+def _resolve_obsidian_dest(output: dict, date: str) -> str:
+    """Obsidian出力設定からVault内の相対保存先を組み立てる。"""
+    path_template = output.get("path_template")
+    if path_template:
+        try:
+            return str(path_template).format(date=date)
+        except KeyError as e:
+            raise ValueError(f"未解決の path_template 変数: {e.args[0]}") from e
+    subdir = str(output.get("subdir", "owlclaw/daily")).rstrip("/")
+    return f"{subdir}/{date}.md"
+
+
 def _dispatch_outputs(task: dict, task_dir: Path, date: str) -> None:
     """task.outputs の定義に従って成果物を配信する。ファイル不在・空ならスキップ。"""
     scripts_dir = PROJ / "scripts"
@@ -243,8 +255,15 @@ def _dispatch_outputs(task: dict, task_dir: Path, date: str) -> None:
             if not note_path.exists() or note_path.stat().st_size == 0:
                 print("  note_draft.md なし/空 — Obsidian 書き込みスキップ", file=sys.stderr)
                 continue
+            relative_dest = _resolve_obsidian_dest(output, date)
             subprocess.run(
-                ["bash", str(scripts_dir / "write_obsidian.sh"), date, str(note_path)],
+                [
+                    "bash",
+                    str(scripts_dir / "write_obsidian.sh"),
+                    date,
+                    str(note_path),
+                    relative_dest,
+                ],
                 check=True,
             )
         elif out_type == "slack":
@@ -262,13 +281,13 @@ def _dispatch_outputs(task: dict, task_dir: Path, date: str) -> None:
             print(f"Warning: 未対応の output タイプ: {out_type}", file=sys.stderr)
 
 
-def _purge_old_videos(task_dir: Path, retention_days: int) -> int:
+def _purge_old_videos(video_dir: Path, retention_days: int) -> int:
     """retention_days より古い digest_*.mp4 を削除し、削除件数を返す。"""
     if retention_days <= 0:
         return 0
     cutoff = datetime.now(UTC) - timedelta(days=retention_days)
     purged = 0
-    for mp4 in task_dir.glob("digest_*.mp4"):
+    for mp4 in video_dir.glob("digest_*.mp4"):
         mtime = datetime.fromtimestamp(mp4.stat().st_mtime, tz=UTC)
         if mtime < cutoff:
             print(f"  cleanup: 古い動画を削除 ({mtime.date()}): {mp4.name}", file=sys.stderr)

@@ -84,6 +84,7 @@ curl http://127.0.0.1:50021/version
 # 動画パイプライン (daily-digest が事前実行されている前提)
 bash scripts/run_task.sh video-digest
 # → tmp/video-digest/digest_YYYYMMDD.mp4 が生成される
+# → $OBSIDIAN_VAULT/docs_obsidian/20_news/owlclaw/video/ に同期用コピーが保存される
 ```
 
 ## バージョン pinning

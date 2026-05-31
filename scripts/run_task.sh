@@ -24,7 +24,10 @@ fi
 
 echo "=== owlclaw: run_task $TASK_ID ==="
 # NVM node bin を PATH に追加（SSH/launchd 非インタラクティブ対策）
-NVM_NODE_BIN="$(ls -d "$HOME"/.nvm/versions/node/*/bin 2>/dev/null | sort -V | tail -1)"
+NVM_NODE_BIN="$(
+  find "$HOME/.nvm/versions/node" -mindepth 2 -maxdepth 2 -type d -name bin -print \
+    2>/dev/null | sort -V | tail -1 || true
+)"
 if [[ -n "$NVM_NODE_BIN" ]]; then
   export PATH="$NVM_NODE_BIN:$PATH"
 fi
@@ -36,5 +39,17 @@ if [[ -f "$KEYCHAIN_PASS_FILE" ]]; then
     "$HOME/Library/Keychains/login.keychain-db" 2>/dev/null || true
 fi
 
-UV="${UV:-$HOME/.local/bin/uv}"
-"$UV" run --directory "$PROJ" python "$PROJ/scripts/orchestrator.py" "$TASK_ID"
+if [[ -n "${UV:-}" ]]; then
+  UV_BIN="$UV"
+elif [[ -x "$HOME/.local/bin/uv" ]]; then
+  UV_BIN="$HOME/.local/bin/uv"
+else
+  UV_BIN="$(command -v uv || true)"
+fi
+
+if [[ -z "$UV_BIN" ]]; then
+  echo "Error: uv が見つかりません。PATH または UV 環境変数を確認してください。" >&2
+  exit 1
+fi
+
+"$UV_BIN" run --directory "$PROJ" python "$PROJ/scripts/orchestrator.py" "$TASK_ID" "${@:2}"
