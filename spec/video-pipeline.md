@@ -127,7 +127,7 @@ owlclaw/
 outputs:
   - type: video
     output_dir: tmp/video-digest
-    obsidian_subdir: owlclaw/video  # mp4 のパス通知のみ
+    obsidian_subdir: owlclaw/video  # Google Drive同期対象のVaultへmp4をコピー
     slack_notify: true
 ```
 
