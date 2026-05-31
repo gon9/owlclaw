@@ -19,5 +19,5 @@ state:
 outputs:
   - type: slack
   - type: obsidian
-    path_template: "Briefings/{date}-{summary}.md"
+    path_template: "Briefings/{date}-visit-briefing.md"
 allowed_tools: "Read,Write,WebSearch,WebFetch"
