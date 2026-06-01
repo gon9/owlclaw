@@ -109,10 +109,10 @@ def render_deck(deck: SlideDeck, out_dir: Path) -> list[Path]:
     pngs: list[Path] = []
     for slide in deck.slides:
         png_path = out_dir / f"{slide.id}.png"
-        # 既存ファイルはスキップ (REGEN=1 で強制再生成)
+        # デフォルトは常に再生成する。USE_CACHE=1 の場合のみ既存ファイルをスキップ (開発用)
         import os as _os  # noqa: PLC0415
-        if png_path.exists() and _os.environ.get("REGEN") != "1":
-            print(f"  [{slide.id}] 既存PNG をスキップ: {png_path}", file=sys.stderr)
+        if png_path.exists() and _os.environ.get("USE_CACHE") == "1":
+            print(f"  [{slide.id}] 既存PNG をスキップ(USE_CACHE=1): {png_path}", file=sys.stderr)
             pngs.append(png_path)
             continue
         if isinstance(slide, HeroSlide):
