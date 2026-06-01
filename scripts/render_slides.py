@@ -24,6 +24,7 @@ sys.path.insert(0, str(PROJ))
 
 from tools.slide_schema import (  # noqa: E402
     DataSlide,
+    ExhibitSlide,
     HeroSlide,
     SlideDeck,
     SummarySlide,
@@ -98,7 +99,7 @@ def _render_image_slide(slide: HeroSlide, out_png: Path) -> None:
 
 
 def _render_html_slide(
-    slide: DataSlide | SummarySlide, out_png: Path, env: Environment
+    slide: DataSlide | ExhibitSlide | SummarySlide, out_png: Path, env: Environment
 ) -> None:
     """Jinja2 テンプレ → HTML → Puppeteer で PNG 化する。"""
     template = env.get_template(f"{slide.template}.html.j2")
@@ -130,7 +131,7 @@ def render_deck(deck: SlideDeck, out_dir: Path) -> list[Path]:
         png_path = out_dir / f"{slide.id}.png"
         if isinstance(slide, HeroSlide):
             _render_image_slide(slide, png_path)
-        elif isinstance(slide, (DataSlide, SummarySlide)):
+        elif isinstance(slide, (DataSlide, ExhibitSlide, SummarySlide)):
             _render_html_slide(slide, png_path, env)
         else:
             raise RuntimeError(f"未対応の slide 型: {type(slide)}")

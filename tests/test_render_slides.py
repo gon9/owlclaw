@@ -5,7 +5,15 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-from tools.slide_schema import ImageSlide, SlideDeck, SummaryData, SummaryListItem, SummarySlide
+from tools.slide_schema import (
+    ExhibitData,
+    ExhibitSlide,
+    ImageSlide,
+    SlideDeck,
+    SummaryData,
+    SummaryListItem,
+    SummarySlide,
+)
 
 PROJ = Path(__file__).parent.parent
 
@@ -45,12 +53,20 @@ def test_render_deck_regenerates_existing_png_files(tmp_path: Path, monkeypatch)
                 ),
                 narration="今日のまとめです。",
             ),
+            ExhibitSlide(
+                id="seg3",
+                type="data",
+                template="exhibit",
+                data=ExhibitData(headline="今日のニュース"),
+                narration="今日のニュースです。",
+            ),
         ],
     )
     out_dir = tmp_path / "slides"
     out_dir.mkdir()
     (out_dir / "seg1.png").write_bytes(b"old-image")
     (out_dir / "seg2.png").write_bytes(b"old-html")
+    (out_dir / "seg3.png").write_bytes(b"old-exhibit")
 
     def render_image(slide, path: Path) -> None:
         path.write_bytes(f"new-{slide.id}".encode())
@@ -63,6 +79,7 @@ def test_render_deck_regenerates_existing_png_files(tmp_path: Path, monkeypatch)
 
     pngs = render_slides.render_deck(deck, out_dir)
 
-    assert pngs == [out_dir / "seg1.png", out_dir / "seg2.png"]
+    assert pngs == [out_dir / "seg1.png", out_dir / "seg2.png", out_dir / "seg3.png"]
     assert (out_dir / "seg1.png").read_bytes() == b"new-seg1"
     assert (out_dir / "seg2.png").read_bytes() == b"new-seg2"
+    assert (out_dir / "seg3.png").read_bytes() == b"new-seg3"

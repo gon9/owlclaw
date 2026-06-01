@@ -13,7 +13,6 @@
 本システムは、目的と内容に応じて「画像生成（gpt-image-2）」と「HTMLレンダリング」を使い分けるハイブリッド構成です。
 
 - **オープニング/クロージング**: `type: "hero"`, `type: "closing"` (画像生成)
-- **抽象的なコンセプト・図解**: `type: "concept"` (画像生成) - 抽象メタファーに特化
 - **KPIサマリー（正確な数字）**: `type: "data", template: "kpi_three_col"` (HTML) - 数字・事実ベース
 - **比較表/データチャート**: `type: "data", template: "exhibit"` (HTML) - 情報密度の高いデータドリブンなレイアウト
 
@@ -52,12 +51,11 @@
 
 2 〜 (top_n + 1). **ニューススライド（記事ごとに最適なフォーマットを選択）**
    - id: `seg2`, `seg3`, ... (top_n 個)
+   - **ニュース本文には必ず読める見出し、要点、数字、出典を表示すること。`type: "concept"` は使用禁止。**
    - 記事の性質に合わせて、以下のいずれかを選択して構成:
-     - **パターンA (コンセプト図解)**: `type: "concept"`
-       - 抽象概念、新しいパラダイム、対立構造などを視覚的メタファー（天秤、山など）で表現する際に使用。テキストを含めない純粋な画像プロンプト（英語）を作成。
-     - **パターンB (KPIサマリー)**: `type: "data", template: "kpi_three_col"`
+     - **パターンA (KPIサマリー)**: `type: "data", template: "kpi_three_col"`
        - 数字（$113M, 5倍など）が最も重要なニュースに使用。3つの数字を強調。
-     - **パターンC (データ・比較表)**: `type: "data", template: "exhibit"`
+     - **パターンB (データ・比較表)**: `type: "data", template: "exhibit"`
        - 競合比較、詳細なデータブレイクダウン、情報密度の高いBCG/McKinsey風「ビジュアル・エグジビット」が必要な場合に使用。
 
 (top_n + 2). **クロージング** (`type: closing`)
@@ -67,7 +65,7 @@
 
 ---
 
-## Exhibit 抽出と構築のコツ（パターンCの場合）
+## Exhibit 抽出と構築のコツ（パターンBの場合）
 
 `template: "exhibit"` を選択した場合、クリーンで簡素なスライドはNGです。**busy / content-rich / dense** な密度の高いコンセプチュアルダイアグラムを目指してください。
 1. **要素の配置** (6-8要素)
@@ -97,12 +95,6 @@
     },
     {
       "id": "seg2",
-      "type": "concept",
-      "image_prompt": "A conceptual diagram showing a balance scale weighing 'Open Model' vs 'Proprietary Model' in hand-drawn BCG exhibit style, minimalistic, dense, no text",
-      "narration": "オープンモデルとプロプライエタリモデルの競争が激化しています..."
-    },
-    {
-      "id": "seg3",
       "type": "data",
       "template": "exhibit",
       "data": {
@@ -139,7 +131,7 @@
       "narration": "..."
     },
     {
-      "id": "seg4",
+      "id": "seg3",
       "type": "closing",
       "image_prompt": "A beautiful cinematic shot of an owl flying through a futuristic server room, symbolizing knowledge and AI, 16:9",
       "narration": "本日のニュースは以上です。詳細はオブシディアンのデイリーダイジェストで。"

@@ -32,12 +32,12 @@ const fs = require('fs');
 
   const browser = await puppeteer.launch({ headless: 'new' });
   const page = await browser.newPage();
-  await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 2 });
+  await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 1 });
   await page.goto('file://' + path.resolve(htmlPath), { waitUntil: 'networkidle0' });
   await page.screenshot({
     path: outPath,
     type: 'png',
-    clip: { x: 0, y: 0, width: 1280, height: 720 },
+    clip: { x: 0, y: 0, width: 1920, height: 1080 },
   });
   await browser.close();
   console.log('saved:', outPath);
