@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -50,10 +51,12 @@ def _find_executable(name: str) -> str:
 
 def _render_image_slide(slide: HeroSlide, out_png: Path) -> None:
     """gpt-image-2 (Codex CLI) で画像を生成して指定パスに保存する。"""
+    generated_root = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")) / "generated_images"
+    before = set(generated_root.glob("**/*.png"))
     prompt = (
         f"$imagegen {slide.image_prompt}\n\n"
-        f"Save the generated image to: {out_png}\n"
-        "Use 1280x720 resolution. Do not write any other files."
+        "Generate the image only. Do not run sips. Do not resize or copy any file. "
+        "Stop immediately after image generation."
     )
     print(f"  [{slide.id}] Codex CLI で画像生成中...", file=sys.stderr)
     codex_bin = _find_executable("codex")
@@ -72,10 +75,26 @@ def _render_image_slide(slide: HeroSlide, out_png: Path) -> None:
             stderr=subprocess.STDOUT,
             check=True,
         )
-    if not out_png.exists():
-        raise RuntimeError(
-            f"[{slide.id}] codex は終了したが画像が生成されていません: {out_png}"
-        )
+    generated = set(generated_root.glob("**/*.png")) - before
+    if not generated:
+        raise RuntimeError(f"[{slide.id}] codex は終了したが生成元画像が見つかりません")
+
+    source_png = max(generated, key=lambda path: path.stat().st_mtime_ns)
+    ffmpeg_bin = _find_executable("ffmpeg")
+    subprocess.run(
+        [
+            ffmpeg_bin,
+            "-y",
+            "-i",
+            str(source_png),
+            "-vf",
+            "scale=1280:720:force_original_aspect_ratio=increase,crop=1280:720",
+            str(out_png),
+        ],
+        check=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
 
 def _render_html_slide(
@@ -109,12 +128,6 @@ def render_deck(deck: SlideDeck, out_dir: Path) -> list[Path]:
     pngs: list[Path] = []
     for slide in deck.slides:
         png_path = out_dir / f"{slide.id}.png"
-        # 既存ファイルはスキップ (REGEN=1 で強制再生成)
-        import os as _os  # noqa: PLC0415
-        if png_path.exists() and _os.environ.get("REGEN") != "1":
-            print(f"  [{slide.id}] 既存PNG をスキップ: {png_path}", file=sys.stderr)
-            pngs.append(png_path)
-            continue
         if isinstance(slide, HeroSlide):
             _render_image_slide(slide, png_path)
         elif isinstance(slide, (DataSlide, SummarySlide)):
