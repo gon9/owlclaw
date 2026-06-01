@@ -13,11 +13,12 @@ state:
   namespace: video-digest
 outputs:
   - type: video
-    slack_notify: true            # 完成通知を Slack に投稿 (Drive URL または Vault 相対パス)
-    obsidian_subdir: "owlclaw/video"  # Google Drive 同期対象のVaultにも動画を保存
-    drive_upload: true            # Google Drive にアップロード + 共有リンク取得
+    slack_notify: true            # 完成通知を Slack に投稿 (Drive URL 付き)
+    drive_upload: true            # Google Drive API にアップロード + 共有リンク取得
     drive_folder: "owlclaw/video-digest"  # Drive 上の保存先 (階層 OK)
-    retention_days: 7             # 古いローカル動画・Vault同期動画は N 日経過で自動削除
+    # obsidian_subdir は廃止: Drive API があれば冗長で Obsidian Vault が汚れるため。
+    # 復活したければ obsidian_subdir: "owlclaw/video" を追加 (Vault 内に同期コピーされる)
+    retention_days: 7             # 古いローカル動画は N 日経過で自動削除
 allowed_tools: "Read,Write"
 video:
   top_n: 1                        # ピックアップ件数（1, 3, 5 など。動画スライド数は top_n + 2: hero + N + summary）
