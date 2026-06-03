@@ -109,6 +109,19 @@ def _render_static_slide(
     )
 
 
+def _render_concept_slide(
+    slide: HeroSlide,
+    deck: SlideDeck,
+    out_png: Path,
+    env: Environment,
+) -> None:
+    """concept スライドを環境設定に応じて Codex または固定 HTML で PNG 化する。"""
+    if os.environ.get("OWLCLAW_USE_CODEX_IMAGEGEN") == "1":
+        _render_image_slide(slide, out_png)
+        return
+    _render_static_slide(slide, deck, out_png, env)
+
+
 def _render_html_slide(
     slide: DataSlide | ExhibitSlide | SummarySlide,
     out_png: Path,
@@ -145,7 +158,7 @@ def render_deck(deck: SlideDeck, out_dir: Path) -> list[Path]:
         if isinstance(slide, HeroSlide) and slide.type in ("hero", "closing"):
             _render_static_slide(slide, deck, png_path, env)
         elif isinstance(slide, HeroSlide):
-            _render_image_slide(slide, png_path)
+            _render_concept_slide(slide, deck, png_path, env)
         elif isinstance(slide, (DataSlide, ExhibitSlide, SummarySlide)):
             _render_html_slide(slide, png_path, env)
         else:
