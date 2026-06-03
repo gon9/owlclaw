@@ -61,6 +61,7 @@ def _render_image_slide(slide: HeroSlide, out_png: Path) -> None:
                 "workspace-write",
                 prompt,
             ],
+            stdin=subprocess.DEVNULL,
             stdout=logf,
             stderr=subprocess.STDOUT,
         )
