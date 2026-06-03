@@ -14,3 +14,4 @@ package-lock.json
 *.db
 .DS_Store
 .antigravitycli/
+spec/reference-slides/*.png

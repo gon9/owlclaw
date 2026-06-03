@@ -2,7 +2,7 @@ id: daily-digest
 description: AI ニュース日次ダイジェスト（RSS → Claude 要約 → Obsidian + Slack）
 schedule:
   type: cron
-  expr: "0 9 * * *"           # 毎朝 9:00 JST（実起動は Claude Code スケジューラ）
+  expr: "0 7 * * *"           # 毎朝 7:00 JST（video-digest の 30 分前）
 sources:
   - type: rss
     config_ref: config/sources.yaml

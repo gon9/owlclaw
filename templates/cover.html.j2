@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    :root {
+      --ink: #f8fbff;
+      --muted: #b9c8dc;
+      --blue: #48a4ff;
+      --orange: #f08a2a;
+      --bg: #071323;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      align-items: center;
+      background:
+        radial-gradient(circle at 22% 18%, rgba(72, 164, 255, 0.36), transparent 28%),
+        radial-gradient(circle at 76% 82%, rgba(240, 138, 42, 0.24), transparent 28%),
+        linear-gradient(135deg, #071323 0%, #0e2341 58%, #102b4f 100%);
+      color: var(--ink);
+      display: flex;
+      font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+      height: 1080px;
+      justify-content: center;
+      margin: 0;
+      overflow: hidden;
+      width: 1920px;
+    }
+    .grid {
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+      background-size: 54px 54px;
+      inset: 0;
+      mask-image: radial-gradient(circle at center, black, transparent 74%);
+      position: absolute;
+    }
+    .panel {
+      align-items: center;
+      border: 2px solid rgba(255, 255, 255, 0.18);
+      border-radius: 34px;
+      box-shadow: 0 28px 80px rgba(0, 0, 0, 0.32);
+      display: flex;
+      flex-direction: column;
+      min-height: 650px;
+      justify-content: center;
+      padding: 72px 96px;
+      position: relative;
+      text-align: center;
+      width: 1360px;
+    }
+    .owl {
+      align-items: center;
+      background: linear-gradient(135deg, var(--blue), #ffffff);
+      border-radius: 50%;
+      color: #0a1b32;
+      display: flex;
+      font-size: 84px;
+      font-weight: 900;
+      height: 150px;
+      justify-content: center;
+      margin-bottom: 42px;
+      width: 150px;
+    }
+    .kicker {
+      color: var(--blue);
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: 0.3em;
+      margin-bottom: 22px;
+    }
+    h1 {
+      font-size: 112px;
+      font-weight: 950;
+      letter-spacing: -0.05em;
+      line-height: 0.95;
+      margin: 0;
+    }
+    .date {
+      color: var(--muted);
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      margin-top: 34px;
+    }
+    .bar {
+      background: linear-gradient(90deg, var(--blue), var(--orange));
+      border-radius: 999px;
+      height: 12px;
+      margin-top: 52px;
+      width: 540px;
+    }
+  </style>
+</head>
+<body>
+  <div class="grid"></div>
+  <main class="panel">
+    <div class="owl">OC</div>
+    <div class="kicker">OWLCLAW NEWS</div>
+    <h1>AI NEWS<br>DIGEST</h1>
+    <div class="date">{{ deck.date }}</div>
+    <div class="bar"></div>
+  </main>
+</body>
+</html>

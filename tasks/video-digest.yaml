@@ -22,6 +22,7 @@ outputs:
 allowed_tools: "Read,Write"
 video:
   top_n: 3                        # ピックアップ件数（1, 3, 5 など。動画スライド数は top_n + 2: hero + N + summary）
+  visual_mode: imagegen           # ニュース本文は画像生成。hero / closing は固定テンプレート
 quiet_hours:
   start: "22:00"
   end: "07:00"

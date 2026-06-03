@@ -4,189 +4,235 @@
   <meta charset="UTF-8">
   <style>
     :root {
-      --bg-color: #f8f9fa;
-      --text-color: #202124;
-      --accent-color: #1a73e8;
-      --border-color: #dadce0;
-      --table-header-bg: #e8f0fe;
+      --ink: #152238;
+      --muted: #5f6b7a;
+      --blue: #1469d2;
+      --blue-dark: #0b4da2;
+      --blue-pale: #eaf3ff;
+      --orange: #ec7a22;
+      --line: #d6dfeb;
+      --paper: #ffffff;
+      --background: #f5f8fc;
+    }
+    * {
+      box-sizing: border-box;
     }
     body {
-      margin: 0;
-      padding: 40px;
-      font-family: 'Helvetica Neue', Arial, sans-serif;
-      background-color: var(--bg-color);
-      color: var(--text-color);
       width: 1920px;
       height: 1080px;
-      box-sizing: border-box;
+      margin: 0;
+      padding: 34px 44px 26px;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at top right, #e2efff 0, transparent 28%),
+        var(--background);
+      color: var(--ink);
+      font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
       display: flex;
       flex-direction: column;
     }
-    .header {
-      margin-bottom: 30px;
+    .eyebrow {
+      color: var(--blue);
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      margin-bottom: 8px;
     }
     h1 {
-      font-size: 64px;
-      margin: 0 0 10px 0;
-      font-weight: 700;
-      letter-spacing: -0.5px;
+      font-size: 58px;
+      line-height: 1.12;
+      margin: 0;
+      letter-spacing: -0.04em;
     }
     .subtitle {
-      font-size: 32px;
-      color: #5f6368;
-      margin: 0;
+      color: var(--muted);
+      font-size: 26px;
+      line-height: 1.4;
+      margin: 8px 0 0;
     }
-    .grid-container {
+    .story-flow {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      grid-template-rows: auto 1fr;
-      gap: 30px;
-      flex-grow: 1;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 34px;
+      margin-top: 20px;
+      position: relative;
+    }
+    .story-flow::before {
+      background: linear-gradient(90deg, var(--blue), var(--orange));
+      content: "";
+      height: 8px;
+      left: 13%;
+      opacity: 0.55;
+      position: absolute;
+      right: 13%;
+      top: 62px;
+      z-index: 0;
     }
     .fig-card {
-      background: white;
-      border: 2px solid var(--border-color);
-      border-radius: 16px;
-      padding: 30px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+      background: var(--paper);
+      border: 2px solid var(--line);
+      border-top: 7px solid var(--blue);
+      border-radius: 18px;
+      box-shadow: 0 8px 20px rgba(21, 34, 56, 0.08);
+      min-height: 270px;
+      padding: 22px 24px 20px;
+      position: relative;
       text-align: center;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      z-index: 1;
+    }
+    .fig-card:nth-child(2) {
+      border-top-color: #568ee0;
+    }
+    .fig-card:nth-child(3) {
+      border-top-color: var(--orange);
+    }
+    .node-index {
+      align-items: center;
+      background: var(--blue);
+      border: 7px solid var(--background);
+      border-radius: 50%;
+      color: white;
+      display: flex;
+      font-size: 20px;
+      font-weight: 900;
+      height: 68px;
+      justify-content: center;
+      left: calc(50% - 34px);
+      position: absolute;
+      top: 30px;
+      width: 68px;
+    }
+    .fig-card:nth-child(2) .node-index {
+      background: #568ee0;
+    }
+    .fig-card:nth-child(3) .node-index {
+      background: var(--orange);
     }
     .fig-title {
-      font-size: 28px;
-      font-weight: bold;
-      color: var(--accent-color);
-      margin-bottom: 20px;
-    }
-    .fig-icon {
-      font-size: 80px;
-      margin-bottom: 20px;
-      opacity: 0.8;
+      color: var(--blue-dark);
+      font-size: 24px;
+      font-weight: 800;
+      margin-top: 94px;
     }
     .fig-value {
-      font-size: 72px;
+      color: var(--ink);
+      font-size: 56px;
       font-weight: 900;
-      margin-bottom: 15px;
+      letter-spacing: -0.04em;
+      line-height: 1.08;
+      margin-top: 8px;
     }
     .fig-caption {
-      font-size: 24px;
-      color: #5f6368;
+      color: var(--muted);
+      font-size: 19px;
+      line-height: 1.45;
+      margin-top: 8px;
     }
     .table-container {
-      grid-column: span 3;
-      background: white;
-      border: 2px solid var(--border-color);
-      border-radius: 16px;
-      padding: 30px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      background: var(--paper);
+      border: 2px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 6px 16px rgba(21, 34, 56, 0.06);
+      margin-top: 18px;
+      padding: 12px 22px;
     }
     table {
-      width: 100%;
       border-collapse: collapse;
-      font-size: 28px;
+      font-size: 21px;
+      line-height: 1.35;
+      width: 100%;
     }
     th, td {
-      padding: 20px;
+      border-bottom: 1px solid var(--line);
+      padding: 10px 16px;
       text-align: left;
-      border-bottom: 1px solid var(--border-color);
+    }
+    tbody tr:last-child td {
+      border-bottom: none;
     }
     th {
-      background-color: var(--table-header-bg);
-      color: var(--accent-color);
-      font-weight: bold;
+      background: var(--blue-pale);
+      color: var(--blue-dark);
+      font-weight: 800;
+    }
+    td:first-child {
+      color: var(--blue-dark);
+      font-weight: 800;
+      width: 20%;
     }
     .insight-bar {
-      margin-top: 30px;
-      background: var(--accent-color);
-      color: white;
-      font-size: 36px;
-      font-weight: bold;
-      padding: 25px 40px;
+      background: linear-gradient(100deg, var(--blue-dark), var(--blue));
       border-radius: 12px;
+      box-shadow: 0 6px 16px rgba(20, 105, 210, 0.22);
+      color: white;
+      font-size: 27px;
+      font-weight: 800;
+      line-height: 1.35;
+      margin-top: 16px;
+      padding: 15px 26px;
       text-align: center;
-      box-shadow: 0 4px 12px rgba(26,115,232,0.3);
     }
     .footer {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 20px;
-      font-size: 20px;
-      color: #80868b;
+      color: #748092;
+      font-size: 15px;
+      margin-top: 9px;
+      text-align: right;
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>{{ data.headline }}</h1>
-    {% if data.subtitle %}
-    <div class="subtitle">{{ data.subtitle }}</div>
-    {% endif %}
+  {% macro fig_card(fig, step) -%}
+  {% if fig %}
+  <div class="fig-card">
+    <div class="node-index">{{ "%02d"|format(step) }}</div>
+    <div class="fig-title">{{ fig.title }}</div>
+    <div class="fig-value">{{ fig.value }}</div>
+    <div class="fig-caption">{{ fig.caption }}</div>
+  </div>
+  {% endif %}
+  {%- endmacro %}
+
+  <div class="eyebrow">INFOGRAPHIC / OWLCLAW NEWS</div>
+  <h1>{{ data.headline }}</h1>
+  {% if data.subtitle %}
+  <div class="subtitle">{{ data.subtitle }}</div>
+  {% endif %}
+
+  <div class="story-flow">
+    {{ fig_card(data.left_fig, 1) }}
+    {{ fig_card(data.middle_fig, 2) }}
+    {{ fig_card(data.right_fig, 3) }}
   </div>
 
-  <div class="grid-container">
-    {% if data.left_fig %}
-    <div class="fig-card">
-      <div class="fig-title">{{ data.left_fig.title }}</div>
-      {% if data.left_fig.icon %}<div class="fig-icon">[{{ data.left_fig.icon }}]</div>{% endif %}
-      <div class="fig-value">{{ data.left_fig.value }}</div>
-      <div class="fig-caption">{{ data.left_fig.caption }}</div>
-    </div>
-    {% endif %}
-
-    {% if data.middle_fig %}
-    <div class="fig-card">
-      <div class="fig-title">{{ data.middle_fig.title }}</div>
-      {% if data.middle_fig.icon %}<div class="fig-icon">[{{ data.middle_fig.icon }}]</div>{% endif %}
-      <div class="fig-value">{{ data.middle_fig.value }}</div>
-      <div class="fig-caption">{{ data.middle_fig.caption }}</div>
-    </div>
-    {% endif %}
-
-    {% if data.right_fig %}
-    <div class="fig-card">
-      <div class="fig-title">{{ data.right_fig.title }}</div>
-      {% if data.right_fig.icon %}<div class="fig-icon">[{{ data.right_fig.icon }}]</div>{% endif %}
-      <div class="fig-value">{{ data.right_fig.value }}</div>
-      <div class="fig-caption">{{ data.right_fig.caption }}</div>
-    </div>
-    {% endif %}
-
-    {% if data.table %}
-    <div class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th></th>
-            <th>{{ data.table.col1_header }}</th>
-            <th>{{ data.table.col2_header }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in data.table.rows %}
-          <tr>
-            <td style="font-weight: bold; color: var(--accent-color);">{{ row.header }}</td>
-            <td>{{ row.col1 }}</td>
-            <td>{{ row.col2 }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% endif %}
-  </div>
-
-  {% if data.insight_bar %}
-  <div class="insight-bar">
-    {{ data.insight_bar }}
+  {% if data.table %}
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th></th>
+          <th>{{ data.table.col1_header }}</th>
+          <th>{{ data.table.col2_header }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in data.table.rows %}
+        <tr>
+          <td>{{ row.header }}</td>
+          <td>{{ row.col1 }}</td>
+          <td>{{ row.col2 }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
   {% endif %}
 
+  {% if data.insight_bar %}
+  <div class="insight-bar">{{ data.insight_bar }}</div>
+  {% endif %}
+
   {% if data.source %}
-  <div class="footer">
-    Source: {{ data.source }}
-  </div>
+  <div class="footer">Source: {{ data.source }} | OWLCLAW NEWS</div>
   {% endif %}
 </body>
 </html>

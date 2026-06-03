@@ -5,7 +5,8 @@
     uv run python scripts/render_slides.py <slides.json> <output_dir>
 
 各スライドは type に応じて以下のレンダラを呼び出す:
-    - hero / concept → Codex CLI ($imagegen) で gpt-image-2
+    - hero / closing → 固定 HTML テンプレート
+    - concept → Codex CLI ($imagegen) で gpt-image-2
     - data / summary → Jinja2 テンプレ → Puppeteer で PNG 化
 """
 
@@ -21,6 +22,9 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 PROJ = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJ))
+sys.path.insert(0, str(Path(__file__).parent))
+
+from _exec import find_executable as _find_executable  # noqa: E402
 
 from tools.slide_schema import (  # noqa: E402
     DataSlide,
@@ -30,24 +34,6 @@ from tools.slide_schema import (  # noqa: E402
     SummarySlide,
     load_deck,
 )
-
-
-def _find_executable(name: str) -> str:
-    """PATH に無い launchd/SSH 環境でも見つかるように、代表的な場所を探す。"""
-    import os as _os  # noqa: PLC0415
-    import shutil as _shutil  # noqa: PLC0415
-    found = _shutil.which(name)
-    if found:
-        return found
-    extra = [
-        f"{_os.path.expanduser('~')}/.local/bin/{name}",
-        f"/opt/homebrew/bin/{name}",
-        f"/usr/local/bin/{name}",
-    ]
-    for p in extra:
-        if _os.path.exists(p) and _os.access(p, _os.X_OK):
-            return p
-    raise RuntimeError(f"executable not found: {name} (PATH と {extra} を確認)")
 
 
 def _render_image_slide(slide: HeroSlide, out_png: Path) -> None:
@@ -98,8 +84,35 @@ def _render_image_slide(slide: HeroSlide, out_png: Path) -> None:
     )
 
 
+def _render_static_slide(
+    slide: HeroSlide,
+    deck: SlideDeck,
+    out_png: Path,
+    env: Environment,
+) -> None:
+    """hero / closing を固定 HTML テンプレートで PNG 化する。"""
+    template_name = "cover" if slide.type == "hero" else "closing"
+    template = env.get_template(f"{template_name}.html.j2")
+    html = template.render(deck=deck, slide=slide)
+    html_path = out_png.with_suffix(".html")
+    html_path.write_text(html, encoding="utf-8")
+    print(f"  [{slide.id}] 固定 {template_name} テンプレ → Puppeteer で PNG 化", file=sys.stderr)
+    node_bin = _find_executable("node")
+    subprocess.run(
+        [
+            node_bin,
+            str(PROJ / "scripts" / "render_html.js"),
+            str(html_path),
+            str(out_png),
+        ],
+        check=True,
+    )
+
+
 def _render_html_slide(
-    slide: DataSlide | ExhibitSlide | SummarySlide, out_png: Path, env: Environment
+    slide: DataSlide | ExhibitSlide | SummarySlide,
+    out_png: Path,
+    env: Environment,
 ) -> None:
     """Jinja2 テンプレ → HTML → Puppeteer で PNG 化する。"""
     template = env.get_template(f"{slide.template}.html.j2")
@@ -129,7 +142,9 @@ def render_deck(deck: SlideDeck, out_dir: Path) -> list[Path]:
     pngs: list[Path] = []
     for slide in deck.slides:
         png_path = out_dir / f"{slide.id}.png"
-        if isinstance(slide, HeroSlide):
+        if isinstance(slide, HeroSlide) and slide.type in ("hero", "closing"):
+            _render_static_slide(slide, deck, png_path, env)
+        elif isinstance(slide, HeroSlide):
             _render_image_slide(slide, png_path)
         elif isinstance(slide, (DataSlide, ExhibitSlide, SummarySlide)):
             _render_html_slide(slide, png_path, env)

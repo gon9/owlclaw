@@ -217,6 +217,7 @@ _make_task_plist "travel-checklist" 8  5
 _make_task_plist "twitter-digest"   8 10
 _make_task_plist "birthday-month"   8  0  "<key>Day</key><integer>1</integer>"
 _make_task_plist "daily-digest"     7  0
+_make_task_plist "video-digest"     7 30
 _make_task_plist "blog-watch"       9  0  "<key>Weekday</key><integer>1</integer>"
 _make_task_plist "arxiv-digest"    10  0
 _make_task_plist "visit-briefing"  20  0
@@ -235,7 +236,7 @@ else
     launchctl load "$AGENTS_DIR/$label.plist"
     log "launchd: $label 登録完了"
   done
-  for task_id in departure-time travel-watch travel-checklist twitter-digest birthday-month daily-digest blog-watch arxiv-digest visit-briefing payment-watch; do
+  for task_id in departure-time travel-watch travel-checklist twitter-digest birthday-month daily-digest video-digest blog-watch arxiv-digest visit-briefing payment-watch; do
     label="com.gon9a.owlclaw-${task_id}"
     launchctl unload "$AGENTS_DIR/$label.plist" 2>/dev/null || true
     launchctl load "$AGENTS_DIR/$label.plist"

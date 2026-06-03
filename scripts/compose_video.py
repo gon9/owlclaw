@@ -17,27 +17,13 @@ from pathlib import Path
 
 PROJ = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJ))
+sys.path.insert(0, str(Path(__file__).parent))
+
+from _exec import find_executable as _find_executable  # noqa: E402
 
 from tools.slide_schema import SlideDeck, load_deck  # noqa: E402
 
 PAD_SECONDS = 0.5  # 各スライド末尾に挿入する無音の余韻
-
-
-def _find_executable(name: str) -> str:
-    """PATH に無い launchd/SSH 環境でも見つかるように、代表的な場所を探す。"""
-    import os as _os  # noqa: PLC0415
-    found = shutil.which(name)
-    if found:
-        return found
-    extra = [
-        f"{_os.path.expanduser('~')}/.local/bin/{name}",
-        f"/opt/homebrew/bin/{name}",
-        f"/usr/local/bin/{name}",
-    ]
-    for p in extra:
-        if _os.path.exists(p) and _os.access(p, _os.X_OK):
-            return p
-    raise RuntimeError(f"executable not found: {name} (PATH と {extra} を確認)")
 
 
 def _segment_duration(wav_path: Path) -> float:
@@ -136,6 +122,9 @@ def compose(deck: SlideDeck, slides_dir: Path, audio_dir: Path, out_mp4: Path) -
             str(concat_txt),
             "-c",
             "copy",
+            # Google Drive などストリーミング再生で moov atom を先読みできるよう先頭に移動
+            "-movflags",
+            "+faststart",
             str(out_mp4),
         ],
         check=True,

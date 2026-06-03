@@ -54,6 +54,7 @@ bash scripts/setup-remote.sh
 | 3 | Puppeteer (`node_modules/puppeteer`, owlclaw 配下) | ~400MB | 30-60秒 |
 | 4 | codex CLI バイナリ install | ~86MB | 30秒 |
 | 5 | uv sync (Python deps) | ~100MB | 数秒 |
+| 6 | daily/video-digest の launchd 登録 | - | 数秒 |
 
 ### 3. codex login (手動・初回のみ)
 
@@ -85,6 +86,10 @@ curl http://127.0.0.1:50021/version
 bash scripts/run_task.sh video-digest
 # → tmp/video-digest/digest_YYYYMMDD.mp4 が生成される
 # → $OBSIDIAN_VAULT/docs_obsidian/20_news/owlclaw/video/ に同期用コピーが保存される
+
+# 定刻実行
+launchctl list | grep com.gon9a.owlclaw
+# → com.gon9a.owlclaw-daily-digest / com.gon9a.owlclaw-video-digest が表示される
 ```
 
 ## バージョン pinning

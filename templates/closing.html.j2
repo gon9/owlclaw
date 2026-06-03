@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    :root {
+      --ink: #f8fbff;
+      --muted: #bdd0e8;
+      --blue: #4aa6ff;
+      --orange: #f08a2a;
+      --bg: #081525;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      align-items: center;
+      background:
+        radial-gradient(circle at 50% 26%, rgba(74, 166, 255, 0.28), transparent 28%),
+        linear-gradient(140deg, #081525 0%, #102647 60%, #07101e 100%);
+      color: var(--ink);
+      display: flex;
+      font-family: "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+      height: 1080px;
+      justify-content: center;
+      margin: 0;
+      overflow: hidden;
+      width: 1920px;
+    }
+    .rings {
+      border: 2px solid rgba(255, 255, 255, 0.14);
+      border-radius: 50%;
+      height: 900px;
+      position: absolute;
+      width: 900px;
+    }
+    .rings::before,
+    .rings::after {
+      border: 2px solid rgba(255, 255, 255, 0.09);
+      border-radius: 50%;
+      content: "";
+      inset: 110px;
+      position: absolute;
+    }
+    .rings::after {
+      inset: 230px;
+    }
+    .panel {
+      align-items: center;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      text-align: center;
+      width: 1280px;
+    }
+    .label {
+      color: var(--blue);
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: 0.28em;
+      margin-bottom: 34px;
+    }
+    h1 {
+      font-size: 86px;
+      font-weight: 950;
+      letter-spacing: -0.045em;
+      line-height: 1.05;
+      margin: 0;
+    }
+    .message {
+      color: var(--muted);
+      font-size: 36px;
+      font-weight: 800;
+      line-height: 1.4;
+      margin-top: 38px;
+    }
+    .bar {
+      background: linear-gradient(90deg, var(--blue), var(--orange));
+      border-radius: 999px;
+      height: 12px;
+      margin-top: 56px;
+      width: 480px;
+    }
+    .footer {
+      bottom: 44px;
+      color: rgba(255, 255, 255, 0.52);
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      position: absolute;
+    }
+  </style>
+</head>
+<body>
+  <div class="rings"></div>
+  <main class="panel">
+    <div class="label">OWLCLAW NEWS</div>
+    <h1>本日のAIニュースは<br>以上です</h1>
+    <div class="message">詳細はオブシディアンのデイリーダイジェストで確認できます。</div>
+    <div class="bar"></div>
+  </main>
+  <div class="footer">{{ deck.date }}</div>
+</body>
+</html>

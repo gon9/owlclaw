@@ -93,20 +93,24 @@ class ExhibitData(BaseModel):
 
     headline: str = Field(description="スライド大見出し")
     subtitle: str = Field(default="", description="サブ段落（リード文）")
-    left_fig: ExhibitFigure | None = Field(default=None, description="左図（メタファー・数字）")
-    middle_fig: ExhibitFigure | None = Field(default=None, description="中図（メタファー・数字）")
-    right_fig: ExhibitFigure | None = Field(default=None, description="右図（メタファー・数字）")
+    left_fig: ExhibitFigure = Field(description="左ノード（起点・従来）")
+    middle_fig: ExhibitFigure = Field(description="中央ノード（変化・転換点）")
+    right_fig: ExhibitFigure = Field(description="右ノード（意味・今後）")
     table: ExhibitTable | None = Field(default=None, description="比較テーブル")
     insight_bar: str = Field(default="", description="下部の示唆バー（Insight bar）")
     source: str = Field(default="", description="出典")
 
 
 class ImageSlide(BaseModel):
-    """`type=hero`, `concept`, `closing` のスライド。gpt-image-2 で生成。"""
+    """`type=hero`, `concept`, `closing` のスライド。
+
+    hero / closing は固定 HTML テンプレートでレンダリングする。
+    concept は必要な場合だけ gpt-image-2 で生成する。
+    """
 
     id: str = Field(description="スライドID（例: seg1）")
     type: Literal["hero", "concept", "closing"]
-    image_prompt: str = Field(description="gpt-image-2 用の英語プロンプト")
+    image_prompt: str = Field(default="", description="concept 用の英語プロンプト")
     narration: str = Field(description="ナレーション原稿（日本語）")
 
 

@@ -10,11 +10,10 @@
 
 ## ハイブリッド・レンダリング戦略（重要）
 
-本システムは、目的と内容に応じて「画像生成（gpt-image-2）」と「HTMLレンダリング」を使い分けるハイブリッド構成です。
+本システムは、表紙・締めを固定テンプレート化し、ニュース本文だけを動的生成します。
 
-- **オープニング/クロージング**: `type: "hero"`, `type: "closing"` (画像生成)
-- **KPIサマリー（正確な数字）**: `type: "data", template: "kpi_three_col"` (HTML) - 数字・事実ベース
-- **比較表/データチャート**: `type: "data", template: "exhibit"` (HTML) - 情報密度の高いデータドリブンなレイアウト
+- **オープニング/クロージング**: `type: "hero"`, `type: "closing"` (固定HTMLテンプレート。画像生成しない)
+- **ニュース本文**: `visual_mode = imagegen` のため、`type: "concept"` + `image_prompt` で画像生成する
 
 ---
 
@@ -34,14 +33,14 @@
 
 1. **オープニング** (`type: hero`)
    - id: `seg1`
-   - ニューススタジオ風画像（gpt-image-2）
-   - **必ず「アウルクロウ（フクロウ）」のモチーフやサイバーなロゴをプロンプトに含めること**
+   - 固定表紙テンプレートでレンダリングされるため、`image_prompt` は不要
    - ナレーション: 番組挨拶と**日付の読み上げ（必ず「YYYY年M月D日」のように年月日を付けること）**、本日の予告（5-7秒）
 
 ## ナレーション原稿のルール（重要）
 
 - **「OWLCLAW」は必ず「アウルクロウ」とひらがな/カタカナで書く**（VOICEVOX 対策）
 - 「Obsidian」は「オブシディアン」と書く
+- **「Anthropic」は必ず「アンソロピック」と書く**（英字のままだと一文字ずつ読み上げられるため）
 - **日付を読む際は「YYYY年M月D日」のように必ず漢字の年月日を含め、自然な日本語にすること**（例：「20260531」のような数字の羅列はNG）
 - **ナレーションの内容は、必ずそのスライド（または画像プロンプト）に表示されているニュース記事と完全に一致させること。スライド上の数字や固有名詞と、ナレーションで読み上げる数字・固有名詞に一切のズレ・矛盾がないようにする。別の記事の内容を混ぜないこと。**
 - アルファベット略語（GPT, API, LLM 等）はそのままで OK
@@ -49,31 +48,41 @@
 - **読点「、」と句点「。」を意識して入れる**（自然な間）
 - 専門用語は最初に短い言い換えを添える
 
-2 〜 (top_n + 1). **ニューススライド（記事ごとに最適なフォーマットを選択）**
+2 〜 (top_n + 1). **ニューススライド**
    - id: `seg2`, `seg3`, ... (top_n 個)
-   - **ニュース本文には必ず読める見出し、要点、数字、出典を表示すること。`type: "concept"` は使用禁止。**
-   - 記事の性質に合わせて、以下のいずれかを選択して構成:
-     - **パターンA (KPIサマリー)**: `type: "data", template: "kpi_three_col"`
-       - 数字（$113M, 5倍など）が最も重要なニュースに使用。3つの数字を強調。
-     - **パターンB (データ・比較表)**: `type: "data", template: "exhibit"`
-       - 競合比較、詳細なデータブレイクダウン、情報密度の高いBCG/McKinsey風「ビジュアル・エグジビット」が必要な場合に使用。
+   - `type: "concept"` を使う。
+   - `image_prompt` は英語で書く。
+   - 画像内に入れる見出し・数字・出典は、必ず元記事の内容と一致させる。
+   - 方向性は「日本語のコンサル資料風 exhibit」。単なる写真・抽象アート・雰囲気画像は禁止。
+   - 1枚の中に、見出し、3つの図解パネル、主要指標、下部の示唆バーを含める。
 
 (top_n + 2). **クロージング** (`type: closing`)
    - id: 最終 seg
-   - 番組の締めにふさわしい装飾的ビジュアル（gpt-image-2）
+   - 固定締めテンプレートでレンダリングされるため、`image_prompt` は不要
    - ナレーション: 締めの挨拶（5-7秒）
 
 ---
 
-## Exhibit 抽出と構築のコツ（パターンBの場合）
+## 画像生成スライドのプロンプト作成ルール（visual_mode=imagegen）
 
-`template: "exhibit"` を選択した場合、クリーンで簡素なスライドはNGです。**busy / content-rich / dense** な密度の高いコンセプチュアルダイアグラムを目指してください。
-1. **要素の配置** (6-8要素)
-   - `headline`, `subtitle`
-   - `left_fig`, `middle_fig`, `right_fig` (アイコンと数値の組み合わせ。アイコンは "hand-drawn scale", "gauge" などを指定)
-   - `table` (競合比較や特徴のデータテーブル)
-   - `insight_bar` (下部を締める示唆・結論)
-   - `source` (出典)
+`type: "concept"` の `image_prompt` は、次の要素を必ず含めてください。
+
+1. **レイアウト**
+   - 16:9 Japanese business-news infographic slide
+   - consulting exhibit style, clean but content-rich
+   - large Japanese headline at top
+   - three main panels across the middle
+   - compact metric table or metric strip at bottom
+   - orange strategic insight bar at bottom
+2. **図解内容**
+   - 記事の構造を、ノード・矢印・比較・チャート・因果関係として描く
+   - 企業名、プロダクト名、金額、成長率、日付、出典を明示する
+   - ただし、事実にない数字や企業名は追加しない
+3. **スタイル**
+   - navy blue, white, orange accents
+   - hand-drawn technical sketch elements
+   - crisp lines, dense but readable
+   - no photorealism, no people, no random extra text
 
 ---
 
@@ -90,50 +99,17 @@
     {
       "id": "seg1",
       "type": "hero",
-      "image_prompt": "A modern AI newsroom scene with a glowing cybernetic owl logo prominently displayed on the main holographic screen, cinematic lighting, blue and white palette, professional broadcast aesthetic, 16:9, no text on screen",
       "narration": "おはようございます。YYYY年M月D日の、アウルクロウ NEWS です。"
     },
     {
       "id": "seg2",
-      "type": "data",
-      "template": "exhibit",
-      "data": {
-        "headline": "OpenRouterが$113Mを調達",
-        "subtitle": "AI推論ルーティング市場における圧倒的優位性と今後の展望",
-        "left_fig": {
-          "title": "資金調達額",
-          "icon": "hand-drawn money bag",
-          "value": "$113M",
-          "caption": "CapitalG主導のシリーズA"
-        },
-        "middle_fig": {
-          "title": "バリュエーション",
-          "icon": "mountain peak",
-          "value": "$1.3B",
-          "caption": "ユニコーン到達"
-        },
-        "right_fig": {
-          "title": "成長スピード",
-          "icon": "gauge maximum",
-          "value": "5倍",
-          "caption": "過去6ヶ月での利用量増加"
-        },
-        "table": {
-          "col1_header": "OpenRouter",
-          "col2_header": "従来型API",
-          "rows": [
-            {"header": "モデル選択", "col1": "動的ルーティング", "col2": "単一ベンダー固定"}
-          ]
-        },
-        "insight_bar": "推論層のコモディティ化が進む中、ルーター層が新たな価値の源泉に",
-        "source": "TechCrunch 2026-05-29"
-      },
+      "type": "concept",
+      "image_prompt": "Create a 16:9 Japanese business-news infographic slide, consulting exhibit style, clean but content-rich. Topic: Replit operates 10,000 AI agents and shifts software development from writing code manually to directing parallel AI work. Layout: large bold Japanese headline at top: \"Replit、1万規模のAIエージェントを稼働\". Three main panels across the middle: INPUT shows natural language instruction, AGENTS shows many parallel AI agents, OUTPUT shows generated app/code, IMPACT shows development bottleneck shifting to task design. Bottom metric strip: 10,000 agents / English prompts / parallel execution / GTM impact. Final orange insight bar: \"戦略的示唆：開発の競争軸は、コードを書く力からAIに仕事を渡す設計力へ移る\". Use navy blue, white, orange accents, hand-drawn technical sketch elements, crisp lines, dense but readable, no photorealism, no people, no random extra text.",
       "narration": "..."
     },
     {
       "id": "seg3",
       "type": "closing",
-      "image_prompt": "A beautiful cinematic shot of an owl flying through a futuristic server room, symbolizing knowledge and AI, 16:9",
       "narration": "本日のニュースは以上です。詳細はオブシディアンのデイリーダイジェストで。"
     }
   ]
@@ -146,5 +122,5 @@
 
 - `slides` 配列は **必ず `top_n + 2` 要素**（オープニング 1 + ニュース top_n + クロージング 1）
 - `id` はユニーク（`seg1`, `seg2`, ..., `seg{top_n+2}`）
-- `image_prompt` は **英語**で書く（gpt-image-2 用）
+- `image_prompt` は本文ニュースで `type: "concept"` を使う場合に英語で書く
 - JSON のみを出力すること

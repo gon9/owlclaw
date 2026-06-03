@@ -10,6 +10,8 @@ from pydantic import ValidationError
 
 from tools.slide_schema import (
     DataSlide,
+    ExhibitData,
+    ExhibitFigure,
     HeroSlide,
     KpiColumn,
     KpiThreeColData,
@@ -75,6 +77,16 @@ def test_hero_slide_creation() -> None:
     assert h.type == "hero"
 
 
+def test_hero_slide_without_image_prompt() -> None:
+    """hero / closing は固定テンプレートなので image_prompt なしでも構築できる。"""
+    h = HeroSlide(
+        id="seg1",
+        type="hero",
+        narration="おはようございます。",
+    )
+    assert h.image_prompt == ""
+
+
 def test_data_slide_creation() -> None:
     """data スライドが正しく構築できる。"""
     d = _data_slide()
@@ -136,6 +148,16 @@ def test_summary_items_zero() -> None:
     """summary の項目数 0 で ValidationError。"""
     with pytest.raises(ValidationError):
         SummaryData(headline="x", items=[])
+
+
+def test_exhibit_requires_three_story_nodes() -> None:
+    """infographic exhibit は3ノードが揃っていないと ValidationError。"""
+    with pytest.raises(ValidationError):
+        ExhibitData(
+            headline="x",
+            left_fig=ExhibitFigure(title="従来", value="A"),
+            middle_fig=ExhibitFigure(title="変化", value="B"),
+        )
 
 
 def test_slide_deck_too_few() -> None:

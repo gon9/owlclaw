@@ -13,20 +13,29 @@ const fs = require('fs');
     process.exit(1);
   }
 
-  // /tmp/puppeteer_test に PoC でインストール済みなのでそこから読む
+  // repo-local を優先し、PoC で使った一時ディレクトリも候補にする。
   let puppeteer;
+  const loadErrors = [];
   const candidates = [
     path.join(__dirname, '..', 'node_modules', 'puppeteer'),
     '/tmp/puppeteer_test/node_modules/puppeteer',
+    '/private/tmp/puppeteer_test/node_modules/puppeteer',
   ];
   for (const c of candidates) {
     if (fs.existsSync(c)) {
-      puppeteer = require(c);
-      break;
+      try {
+        puppeteer = require(c);
+        break;
+      } catch (err) {
+        loadErrors.push(`${c}: ${err.message}`);
+      }
     }
   }
   if (!puppeteer) {
     console.error('puppeteer not found. install: npm install puppeteer --prefix /tmp/puppeteer_test');
+    if (loadErrors.length) {
+      console.error(loadErrors.join('\n'));
+    }
     process.exit(1);
   }
 

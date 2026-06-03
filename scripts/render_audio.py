@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -24,6 +25,26 @@ from tools.slide_schema import SlideDeck, load_deck  # noqa: E402
 
 VOICEVOX_URL = os.environ.get("VOICEVOX_URL", "http://127.0.0.1:50021")
 TIMEOUT = httpx.Timeout(60.0)
+
+PRONUNCIATION_REPLACEMENTS = {
+    "anthropic": "アンソロピック",
+    "anthoropic": "アンソロピック",
+    "obsidian": "オブシディアン",
+    "owlclaw": "アウルクロウ",
+}
+PRONUNCIATION_PATTERN = re.compile(
+    rf"(?<![A-Za-z0-9_])({'|'.join(map(re.escape, PRONUNCIATION_REPLACEMENTS))})"
+    r"(?![A-Za-z0-9_])",
+    flags=re.IGNORECASE,
+)
+
+
+def normalize_pronunciation(text: str) -> str:
+    """VOICEVOX が英字を一文字ずつ読まないように既知の固有名詞を読みへ置換する。"""
+    return PRONUNCIATION_PATTERN.sub(
+        lambda match: PRONUNCIATION_REPLACEMENTS[match.group(0).lower()],
+        text,
+    )
 
 
 def synthesize(text: str, speaker: int, out_wav: Path) -> None:
@@ -61,7 +82,7 @@ def render_audio(deck: SlideDeck, out_dir: Path) -> list[Path]:
     for slide in deck.slides:
         wav_path = out_dir / f"{slide.id}.wav"
         print(f"  [{slide.id}] VOICEVOX 音声合成中 (speaker={deck.speaker_id})", file=sys.stderr)
-        synthesize(slide.narration, deck.speaker_id, wav_path)
+        synthesize(normalize_pronunciation(slide.narration), deck.speaker_id, wav_path)
         wavs.append(wav_path)
     return wavs
 

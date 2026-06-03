@@ -17,6 +17,7 @@
 # 実行後の手動ステップ:
 #   1. codex login  # ChatGPT OAuth or API key
 #   2. bash scripts/run_task.sh video-digest  # 動作確認
+#   3. launchctl list | grep com.gon9a.owlclaw # 定刻実行の確認
 
 set -euo pipefail
 
@@ -48,7 +49,7 @@ warn() { printf '\033[1;31m  ! %s\033[0m\n' "$*"; }
 log "owlclaw remote setup (arch=$ARCH, voicevox=$VOICEVOX_VERSION, codex=$CODEX_VERSION)"
 
 # === 0. py7zr (VOICEVOX 7z 展開用) ===
-log "0/5 py7zr (Python lib for .7z extraction)"
+log "0/6 py7zr (Python lib for .7z extraction)"
 if python3 -c 'import py7zr' 2>/dev/null; then
   skip "py7zr already installed"
 else
@@ -57,7 +58,7 @@ else
 fi
 
 # === 1. VOICEVOX Engine (~1.2GB ダウンロード、初回のみ) ===
-log "1/5 VOICEVOX Engine ${VOICEVOX_VERSION} (${VV_PLATFORM})"
+log "1/6 VOICEVOX Engine ${VOICEVOX_VERSION} (${VV_PLATFORM})"
 if [[ -x "${VOICEVOX_DIR}/${VV_PLATFORM}/run" ]]; then
   skip "VOICEVOX Engine binary exists at ${VOICEVOX_DIR}/${VV_PLATFORM}/run"
 else
@@ -82,7 +83,7 @@ print(f'  extracted in {time.time()-start:.0f}s')
 fi
 
 # === 2. VOICEVOX launchd (常駐化) ===
-log "2/5 VOICEVOX launchd job"
+log "2/6 VOICEVOX launchd job"
 PLIST="${HOME_DIR}/Library/LaunchAgents/com.voicevox.engine.plist"
 VV_RUN="${VOICEVOX_DIR}/${VV_PLATFORM}/run"
 
@@ -134,7 +135,7 @@ for i in $(seq 1 90); do
 done
 
 # === 3. Puppeteer (repo-local node_modules) ===
-log "3/5 Puppeteer (Chromium) — for HTML slide rendering"
+log "3/6 Puppeteer (Chromium) — for HTML slide rendering"
 if [[ ! -d "$OWLCLAW_DIR" ]]; then
   warn "$OWLCLAW_DIR not found. clone owlclaw first then re-run."
   exit 1
@@ -159,7 +160,7 @@ else
 fi
 
 # === 4. codex CLI (auth は手動) ===
-log "4/5 codex CLI ${CODEX_VERSION}"
+log "4/6 codex CLI ${CODEX_VERSION}"
 NEED_INSTALL=true
 if [[ -x "${LOCAL_BIN}/codex" ]]; then
   CUR_VER=$("${LOCAL_BIN}/codex" --version 2>/dev/null || true)
@@ -194,13 +195,66 @@ else
 fi
 
 # === 5. uv sync (Python deps) ===
-log "5/5 uv sync (owlclaw Python deps)"
+log "5/6 uv sync (owlclaw Python deps)"
 if [[ ! -x "${LOCAL_BIN}/uv" ]]; then
   warn "uv が ${LOCAL_BIN}/uv に無い。 https://docs.astral.sh/uv/ から install してください"
 else
   cd "$OWLCLAW_DIR"
   "${LOCAL_BIN}/uv" sync 2>&1 | tail -3
   ok "uv sync done"
+fi
+
+# === 6. owlclaw scheduled launchd tasks ===
+log "6/6 owlclaw launchd scheduled tasks"
+mkdir -p "${HOME_DIR}/Library/LaunchAgents" "${OWLCLAW_DIR}/tmp"
+
+_make_owlclaw_task_plist() {
+  local task_id="$1" hour="$2" minute="$3"
+  local plist="${HOME_DIR}/Library/LaunchAgents/com.gon9a.owlclaw-${task_id}.plist"
+  cat > "$plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.gon9a.owlclaw-${task_id}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-lc</string>
+        <string>source "\$HOME/.local/bin/env" 2>/dev/null || true; export PATH="/opt/homebrew/bin:/usr/local/bin:\$HOME/.local/bin:\$PATH"; export NVM_DIR="\$HOME/.nvm"; [ -s "\$NVM_DIR/nvm.sh" ] &amp;&amp; . "\$NVM_DIR/nvm.sh"; security unlock-keychain -p "\$(cat "\$HOME/.keychain_pass")" "\$HOME/Library/Keychains/login.keychain-db" 2>/dev/null || true; cd "${OWLCLAW_DIR}" &amp;&amp; bash scripts/run_task.sh ${task_id}</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>${hour}</integer>
+        <key>Minute</key>
+        <integer>${minute}</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>${OWLCLAW_DIR}/tmp/launchd-${task_id}.log</string>
+    <key>StandardErrorPath</key>
+    <string>${OWLCLAW_DIR}/tmp/launchd-${task_id}-err.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>${HOME_DIR}</string>
+        <key>USER</key>
+        <string>${USER}</string>
+    </dict>
+</dict>
+</plist>
+EOF
+  launchctl unload "$plist" 2>/dev/null || true
+  launchctl load -w "$plist"
+  ok "launchd com.gon9a.owlclaw-${task_id} registered (${hour}:${minute})"
+}
+
+if [[ -x "${LOCAL_BIN}/uv" ]]; then
+  _make_owlclaw_task_plist "daily-digest" 7 0
+  _make_owlclaw_task_plist "video-digest" 7 30
+else
+  warn "uv が無いため owlclaw 定刻実行 launchd 登録をスキップしました"
 fi
 
 # === Summary ===
@@ -211,8 +265,12 @@ echo "Next steps:"
 echo "  1. ${LOCAL_BIN}/codex login        # ChatGPT OAuth で認証 (初回のみ)"
 echo "  2. bash ${OWLCLAW_DIR}/scripts/run_task.sh video-digest"
 echo "                                       # video pipeline の動作確認"
+echo "  3. launchctl list | grep com.gon9a.owlclaw"
+echo "                                       # daily/video 定刻実行の登録確認"
 echo
 echo "Useful commands:"
 echo "  - launchctl list | grep voicevox      # VOICEVOX 常駐状態"
+echo "  - launchctl list | grep com.gon9a.owlclaw"
+echo "  - tail -f ${OWLCLAW_DIR}/tmp/launchd-video-digest-err.log"
 echo "  - tail -f ${VOICEVOX_DIR}/engine.err.log"
 echo "  - curl http://127.0.0.1:50021/version # VOICEVOX 動作確認"

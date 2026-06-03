@@ -37,7 +37,7 @@ slides.json (single source of truth)
 |---|---|---|---|
 | `hero` | gpt-image-2 | オープニング/クロージング | 装飾的、再利用可能 |
 | `concept` | gpt-image-2 | 概念図解、メタファー | 抽象表現が得意 |
-| `data` | HTML/Puppeteer | KPIサマリー、比較表 | 数字100%正確、再現性◎ |
+| `data` | HTML/Puppeteer | インフォグラフィック、KPIサマリー | 数字100%正確、再現性◎ |
 | `summary` | HTML/Puppeteer | アジェンダ、インデックス | テキスト主体、再現性◎ |
 
 ### パイプライン全体フロー
@@ -164,6 +164,7 @@ outputs:
 
 - **Hiragino Sans / Yu Gothic** 等システムフォントで日本語安定
 - **deviceScaleFactor: 2** でレンダリング、出力時に1280x720に圧縮
+- **ニュース本文は3ノードのインフォグラフィックを既定**にして、左から右へ「起点 → 変化 → 意味」を読める構成にする
 - **Chart.js / Lucide アイコン**は将来導入（MVP では emoji + 簡易 SVG）
 
 ### VOICEVOX
