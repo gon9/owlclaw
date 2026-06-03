@@ -16,6 +16,7 @@ import argparse
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -48,8 +49,10 @@ def _render_image_slide(slide: HeroSlide, out_png: Path) -> None:
     print(f"  [{slide.id}] Codex CLI で画像生成中...", file=sys.stderr)
     codex_bin = _find_executable("codex")
     log_path = out_png.with_suffix(".codex.log")
+    poll_seconds = int(os.environ.get("OWLCLAW_CODEX_POLL_SECONDS", "30"))
+    timeout_seconds = int(os.environ.get("OWLCLAW_CODEX_TIMEOUT_SECONDS", "900"))
     with log_path.open("w", encoding="utf-8") as logf:
-        subprocess.run(
+        proc = subprocess.Popen(
             [
                 codex_bin,
                 "exec",
@@ -60,8 +63,39 @@ def _render_image_slide(slide: HeroSlide, out_png: Path) -> None:
             ],
             stdout=logf,
             stderr=subprocess.STDOUT,
-            check=True,
         )
+        started = time.monotonic()
+        last_report = started
+        while True:
+            returncode = proc.poll()
+            elapsed = time.monotonic() - started
+            if returncode is not None:
+                if returncode != 0:
+                    raise subprocess.CalledProcessError(returncode, proc.args)
+                break
+            if elapsed > timeout_seconds:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait()
+                raise TimeoutError(
+                    f"[{slide.id}] Codex imagegen が {timeout_seconds} 秒でタイムアウト: {log_path}"
+                )
+            if time.monotonic() - last_report >= poll_seconds:
+                generated_now = set(generated_root.glob("**/*.png")) - before
+                latest = ""
+                if log_path.exists() and log_path.stat().st_size > 0:
+                    lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+                    latest = f" latest_log={lines[-1][:120]!r}" if lines else ""
+                print(
+                    f"  [{slide.id}] Codex imagegen 継続中 "
+                    f"({int(elapsed)}s, generated={len(generated_now)}, log={log_path}){latest}",
+                    file=sys.stderr,
+                )
+                last_report = time.monotonic()
+            time.sleep(1)
     generated = set(generated_root.glob("**/*.png")) - before
     if not generated:
         raise RuntimeError(f"[{slide.id}] codex は終了したが生成元画像が見つかりません")
@@ -91,6 +125,8 @@ def _render_static_slide(
     env: Environment,
 ) -> None:
     """hero / closing を固定 HTML テンプレートで PNG 化する。"""
+    if slide.type not in ("hero", "closing"):
+        raise ValueError(f"固定テンプレートは hero / closing のみ対応: {slide.type}")
     template_name = "cover" if slide.type == "hero" else "closing"
     template = env.get_template(f"{template_name}.html.j2")
     html = template.render(deck=deck, slide=slide)
@@ -111,15 +147,12 @@ def _render_static_slide(
 
 def _render_concept_slide(
     slide: HeroSlide,
-    deck: SlideDeck,
+    _deck: SlideDeck,
     out_png: Path,
-    env: Environment,
+    _env: Environment,
 ) -> None:
-    """concept スライドを環境設定に応じて Codex または固定 HTML で PNG 化する。"""
-    if os.environ.get("OWLCLAW_USE_CODEX_IMAGEGEN") == "1":
-        _render_image_slide(slide, out_png)
-        return
-    _render_static_slide(slide, deck, out_png, env)
+    """concept スライドを Codex imagegen で PNG 化する。"""
+    _render_image_slide(slide, out_png)
 
 
 def _render_html_slide(

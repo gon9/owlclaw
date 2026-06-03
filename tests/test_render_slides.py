@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import pytest
 from jinja2 import Environment, FileSystemLoader
 
 from tools.slide_schema import (
@@ -46,8 +47,14 @@ def test_render_deck_regenerates_existing_png_files(tmp_path: Path, monkeypatch)
                 image_prompt="Today's owl logo",
                 narration="今日のオープニング",
             ),
-            SummarySlide(
+            ImageSlide(
                 id="seg2",
+                type="concept",
+                image_prompt="Japanese business-news infographic slide",
+                narration="今日のニュースです。",
+            ),
+            SummarySlide(
+                id="seg3",
                 type="summary",
                 template="summary",
                 data=SummaryData(
@@ -57,7 +64,7 @@ def test_render_deck_regenerates_existing_png_files(tmp_path: Path, monkeypatch)
                 narration="今日のまとめです。",
             ),
             ExhibitSlide(
-                id="seg3",
+                id="seg4",
                 type="data",
                 template="exhibit",
                 data=ExhibitData(
@@ -73,8 +80,9 @@ def test_render_deck_regenerates_existing_png_files(tmp_path: Path, monkeypatch)
     out_dir = tmp_path / "slides"
     out_dir.mkdir()
     (out_dir / "seg1.png").write_bytes(b"old-image")
-    (out_dir / "seg2.png").write_bytes(b"old-html")
-    (out_dir / "seg3.png").write_bytes(b"old-exhibit")
+    (out_dir / "seg2.png").write_bytes(b"old-concept")
+    (out_dir / "seg3.png").write_bytes(b"old-html")
+    (out_dir / "seg4.png").write_bytes(b"old-exhibit")
 
     def render_image(slide, path: Path) -> None:
         path.write_bytes(f"new-{slide.id}".encode())
@@ -95,10 +103,12 @@ def test_render_deck_regenerates_existing_png_files(tmp_path: Path, monkeypatch)
         out_dir / "seg1.png",
         out_dir / "seg2.png",
         out_dir / "seg3.png",
+        out_dir / "seg4.png",
     ]
     assert (out_dir / "seg1.png").read_bytes() == b"new-seg1"
     assert (out_dir / "seg2.png").read_bytes() == b"new-seg2"
     assert (out_dir / "seg3.png").read_bytes() == b"new-seg3"
+    assert (out_dir / "seg4.png").read_bytes() == b"new-seg4"
 
 
 def test_render_html_slide_writes_infographic_story_nodes(tmp_path: Path, monkeypatch) -> None:
@@ -159,3 +169,29 @@ def test_render_static_slide_writes_fixed_cover_html(tmp_path: Path, monkeypatch
     html = out_png.with_suffix(".html").read_text(encoding="utf-8")
     assert "AI NEWS" in html
     assert "2026-06-04" in html
+
+
+def test_static_slide_rejects_concept(tmp_path: Path) -> None:
+    """concept を closing テンプレートへ誤フォールバックさせない。"""
+    render_slides = _load_render_slides()
+    env = Environment(loader=FileSystemLoader(str(PROJ / "templates")))
+    deck = SlideDeck(
+        title="OWLCLAW NEWS",
+        date="2026-06-04",
+        slides=[
+            ImageSlide(
+                id="seg1",
+                type="hero",
+                narration="おはようございます。",
+            ),
+            ImageSlide(
+                id="seg2",
+                type="concept",
+                image_prompt="Japanese business-news infographic slide",
+                narration="ニュースです。",
+            ),
+        ],
+    )
+
+    with pytest.raises(ValueError):
+        render_slides._render_static_slide(deck.slides[1], deck, tmp_path / "seg2.png", env)
