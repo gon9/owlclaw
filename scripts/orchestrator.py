@@ -332,6 +332,22 @@ def _dispatch_video_output(output: dict, task_dir: Path, date: str) -> None:
         [py, str(scripts_dir / "render_slides.py"), str(slides_json), str(slides_dir)],
         check=True,
     )
+
+    from scripts.check_video_digest import validate_video_digest  # noqa: PLC0415
+
+    validation_items = validate_video_digest(
+        date=date,
+        task_dir=task_dir,
+        require_audio=False,
+        require_mp4=False,
+    )
+    failed_items = [item for item in validation_items if not item.ok]
+    if failed_items:
+        print("  video-digest slide artifact validation failed:", file=sys.stderr)
+        for item in failed_items:
+            print(f"    NG {item.label}: {item.detail}", file=sys.stderr)
+        raise RuntimeError("video-digest slide artifacts are incomplete")
+
     subprocess.run(
         [py, str(scripts_dir / "render_audio.py"), str(slides_json), str(audio_dir)],
         check=True,

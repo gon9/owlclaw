@@ -111,6 +111,43 @@ def test_render_deck_regenerates_existing_png_files(tmp_path: Path, monkeypatch)
     assert (out_dir / "seg4.png").read_bytes() == b"new-seg4"
 
 
+def test_render_deck_routes_concept_to_imagegen(tmp_path: Path, monkeypatch) -> None:
+    """concept は常に Codex imagegen レンダラへ流す。"""
+    render_slides = _load_render_slides()
+    deck = SlideDeck(
+        title="Test",
+        date="2026-06-04",
+        slides=[
+            ImageSlide(
+                id="seg1",
+                type="hero",
+                narration="おはようございます。",
+            ),
+            ImageSlide(
+                id="seg2",
+                type="concept",
+                image_prompt="Japanese business-news infographic slide",
+                narration="ニュースです。",
+            ),
+        ],
+    )
+    routed: list[str] = []
+
+    def render_image(slide, path: Path) -> None:
+        routed.append(slide.id)
+        path.write_bytes(b"concept")
+
+    def render_static(slide, _deck, path: Path, _env) -> None:
+        path.write_bytes(f"static-{slide.id}".encode())
+
+    monkeypatch.setattr(render_slides, "_render_image_slide", render_image)
+    monkeypatch.setattr(render_slides, "_render_static_slide", render_static)
+
+    render_slides.render_deck(deck, tmp_path)
+
+    assert routed == ["seg2"]
+
+
 def test_render_html_slide_writes_infographic_story_nodes(tmp_path: Path, monkeypatch) -> None:
     """exhibit は3ノードのインフォグラフィック HTML を生成する。"""
     render_slides = _load_render_slides()
