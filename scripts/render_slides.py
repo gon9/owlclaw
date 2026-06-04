@@ -51,55 +51,77 @@ def _render_image_slide(slide: HeroSlide, out_png: Path) -> None:
     log_path = out_png.with_suffix(".codex.log")
     poll_seconds = int(os.environ.get("OWLCLAW_CODEX_POLL_SECONDS", "30"))
     timeout_seconds = int(os.environ.get("OWLCLAW_CODEX_TIMEOUT_SECONDS", "900"))
-    with log_path.open("w", encoding="utf-8") as logf:
-        proc = subprocess.Popen(
-            [
-                codex_bin,
-                "exec",
-                "--skip-git-repo-check",
-                "--sandbox",
-                "workspace-write",
-                prompt,
-            ],
-            stdin=subprocess.DEVNULL,
-            stdout=logf,
-            stderr=subprocess.STDOUT,
+    max_attempts = int(os.environ.get("OWLCLAW_CODEX_MAX_ATTEMPTS", "2"))
+    generated: set[Path] = set()
+    for attempt in range(1, max_attempts + 1):
+        attempt_log_path = (
+            log_path
+            if max_attempts == 1
+            else out_png.with_suffix(f".codex.attempt{attempt}.log")
         )
-        started = time.monotonic()
-        last_report = started
-        while True:
-            returncode = proc.poll()
-            elapsed = time.monotonic() - started
-            if returncode is not None:
-                if returncode != 0:
-                    raise subprocess.CalledProcessError(returncode, proc.args)
-                break
-            if elapsed > timeout_seconds:
-                proc.terminate()
-                try:
-                    proc.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    proc.kill()
-                    proc.wait()
-                raise TimeoutError(
-                    f"[{slide.id}] Codex imagegen が {timeout_seconds} 秒でタイムアウト: {log_path}"
-                )
-            if time.monotonic() - last_report >= poll_seconds:
-                generated_now = set(generated_root.glob("**/*.png")) - before
-                latest = ""
-                if log_path.exists() and log_path.stat().st_size > 0:
-                    lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
-                    latest = f" latest_log={lines[-1][:120]!r}" if lines else ""
-                print(
-                    f"  [{slide.id}] Codex imagegen 継続中 "
-                    f"({int(elapsed)}s, generated={len(generated_now)}, log={log_path}){latest}",
-                    file=sys.stderr,
-                )
-                last_report = time.monotonic()
-            time.sleep(1)
-    generated = set(generated_root.glob("**/*.png")) - before
+        with attempt_log_path.open("w", encoding="utf-8") as logf:
+            proc = subprocess.Popen(
+                [
+                    codex_bin,
+                    "exec",
+                    "--skip-git-repo-check",
+                    "--sandbox",
+                    "workspace-write",
+                    prompt,
+                ],
+                stdin=subprocess.DEVNULL,
+                stdout=logf,
+                stderr=subprocess.STDOUT,
+            )
+            started = time.monotonic()
+            last_report = started
+            while True:
+                returncode = proc.poll()
+                elapsed = time.monotonic() - started
+                if returncode is not None:
+                    if returncode != 0:
+                        raise subprocess.CalledProcessError(returncode, proc.args)
+                    break
+                if elapsed > timeout_seconds:
+                    proc.terminate()
+                    try:
+                        proc.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        proc.kill()
+                        proc.wait()
+                    raise TimeoutError(
+                        f"[{slide.id}] Codex imagegen が {timeout_seconds} 秒でタイムアウト: "
+                        f"{attempt_log_path}"
+                    )
+                if time.monotonic() - last_report >= poll_seconds:
+                    generated_now = set(generated_root.glob("**/*.png")) - before
+                    latest = ""
+                    if attempt_log_path.exists() and attempt_log_path.stat().st_size > 0:
+                        lines = attempt_log_path.read_text(
+                            encoding="utf-8",
+                            errors="replace",
+                        ).splitlines()
+                        latest = f" latest_log={lines[-1][:120]!r}" if lines else ""
+                    print(
+                        f"  [{slide.id}] Codex imagegen 継続中 "
+                        f"(attempt={attempt}/{max_attempts}, {int(elapsed)}s, "
+                        f"generated={len(generated_now)}, log={attempt_log_path}){latest}",
+                        file=sys.stderr,
+                    )
+                    last_report = time.monotonic()
+                time.sleep(1)
+        generated = set(generated_root.glob("**/*.png")) - before
+        if generated:
+            break
+        print(
+            f"  [{slide.id}] Codex imagegen は正常終了したが画像なし。再試行します "
+            f"({attempt}/{max_attempts}): {attempt_log_path}",
+            file=sys.stderr,
+        )
     if not generated:
-        raise RuntimeError(f"[{slide.id}] codex は終了したが生成元画像が見つかりません")
+        raise RuntimeError(
+            f"[{slide.id}] codex は終了したが生成元画像が見つかりません: {log_path}"
+        )
 
     source_png = max(generated, key=lambda path: path.stat().st_mtime_ns)
     ffmpeg_bin = _find_executable("ffmpeg")
