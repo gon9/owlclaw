@@ -18,6 +18,7 @@
 #   1. codex login  # ChatGPT OAuth or API key
 #   2. bash scripts/run_task.sh video-digest  # 動作確認
 #   3. launchctl list | grep com.gon9a.owlclaw # 定刻実行の確認
+#   4. launchctl list | grep -E 'com.gon9a.(claude|codex)-update' # CLI updater の確認
 
 set -euo pipefail
 
@@ -194,6 +195,86 @@ else
   warn "codex login が必要: \`${LOCAL_BIN}/codex login\` を手動実行してください"
 fi
 
+# === 4b. Claude/Codex CLI updater launchd ===
+log "4b/6 Claude/Codex CLI updater launchd"
+CLAUDE_UPDATE_PLIST="${HOME_DIR}/Library/LaunchAgents/com.gon9a.claude-update.plist"
+CODEX_UPDATE_PLIST="${HOME_DIR}/Library/LaunchAgents/com.gon9a.codex-update.plist"
+mkdir -p "${HOME_DIR}/Library/LaunchAgents" "${OWLCLAW_DIR}/tmp"
+cat > "$CLAUDE_UPDATE_PLIST" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.gon9a.claude-update</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-lc</string>
+        <string>source "\$HOME/.local/bin/env" 2>/dev/null || true; export PATH="/opt/homebrew/bin:/usr/local/bin:\$HOME/.local/bin:\$PATH"; export NVM_DIR="\$HOME/.nvm"; [ -s "\$NVM_DIR/nvm.sh" ] &amp;&amp; . "\$NVM_DIR/nvm.sh"; cd "${OWLCLAW_DIR}" &amp;&amp; bash scripts/update_claude.sh</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>3</integer>
+        <key>Minute</key>
+        <integer>10</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>${OWLCLAW_DIR}/tmp/launchd-claude-update.log</string>
+    <key>StandardErrorPath</key>
+    <string>${OWLCLAW_DIR}/tmp/launchd-claude-update-err.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>${HOME_DIR}</string>
+        <key>USER</key>
+        <string>${USER}</string>
+    </dict>
+</dict>
+</plist>
+EOF
+cat > "$CODEX_UPDATE_PLIST" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.gon9a.codex-update</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-lc</string>
+        <string>source "\$HOME/.local/bin/env" 2>/dev/null || true; export PATH="/opt/homebrew/bin:/usr/local/bin:\$HOME/.local/bin:\$PATH"; cd "${OWLCLAW_DIR}" &amp;&amp; bash scripts/update_codex.sh</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>3</integer>
+        <key>Minute</key>
+        <integer>20</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>${OWLCLAW_DIR}/tmp/launchd-codex-update.log</string>
+    <key>StandardErrorPath</key>
+    <string>${OWLCLAW_DIR}/tmp/launchd-codex-update-err.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>${HOME_DIR}</string>
+        <key>USER</key>
+        <string>${USER}</string>
+    </dict>
+</dict>
+</plist>
+EOF
+launchctl unload "$CLAUDE_UPDATE_PLIST" 2>/dev/null || true
+launchctl load -w "$CLAUDE_UPDATE_PLIST"
+ok "launchd com.gon9a.claude-update registered (03:10 daily)"
+launchctl unload "$CODEX_UPDATE_PLIST" 2>/dev/null || true
+launchctl load -w "$CODEX_UPDATE_PLIST"
+ok "launchd com.gon9a.codex-update registered (03:20 daily)"
+
 # === 5. uv sync (Python deps) ===
 log "5/6 uv sync (owlclaw Python deps)"
 if [[ ! -x "${LOCAL_BIN}/uv" ]]; then
@@ -267,10 +348,17 @@ echo "  2. bash ${OWLCLAW_DIR}/scripts/run_task.sh video-digest"
 echo "                                       # video pipeline の動作確認"
 echo "  3. launchctl list | grep com.gon9a.owlclaw"
 echo "                                       # daily/video 定刻実行の登録確認"
+echo "  4. launchctl list | grep -E 'com.gon9a.(claude|codex)-update'"
+echo "                                       # CLI updater の登録確認"
 echo
 echo "Useful commands:"
 echo "  - launchctl list | grep voicevox      # VOICEVOX 常駐状態"
 echo "  - launchctl list | grep com.gon9a.owlclaw"
+echo "  - launchctl list | grep -E 'com.gon9a.(claude|codex)-update'"
+echo "  - bash ${OWLCLAW_DIR}/scripts/update_claude.sh"
+echo "  - bash ${OWLCLAW_DIR}/scripts/update_codex.sh"
 echo "  - tail -f ${OWLCLAW_DIR}/tmp/launchd-video-digest-err.log"
+echo "  - tail -f ${OWLCLAW_DIR}/tmp/launchd-claude-update-err.log"
+echo "  - tail -f ${OWLCLAW_DIR}/tmp/launchd-codex-update-err.log"
 echo "  - tail -f ${VOICEVOX_DIR}/engine.err.log"
 echo "  - curl http://127.0.0.1:50021/version # VOICEVOX 動作確認"

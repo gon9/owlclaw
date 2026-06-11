@@ -175,7 +175,66 @@ else
 fi
 
 # ────────────────────────────────────────────
-# 12. launchd: owlclaw 各タスク plist 生成
+# 12. launchd: Claude/Codex CLI updater
+# ────────────────────────────────────────────
+cat > "$AGENTS_DIR/com.gon9a.claude-update.plist" << PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.gon9a.claude-update</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-lc</string>
+        <string>source \$HOME/.local/bin/env 2>/dev/null || true; export PATH="/opt/homebrew/bin:/usr/local/bin:\$HOME/.local/bin:\$PATH"; export NVM_DIR="\$HOME/.nvm"; [ -s "\$NVM_DIR/nvm.sh" ] &amp;&amp; . "\$NVM_DIR/nvm.sh"; cd $INSTALL_DIR &amp;&amp; bash scripts/update_claude.sh</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key><integer>3</integer>
+        <key>Minute</key><integer>10</integer>
+    </dict>
+    <key>StandardOutPath</key><string>$INSTALL_DIR/tmp/launchd-claude-update.log</string>
+    <key>StandardErrorPath</key><string>$INSTALL_DIR/tmp/launchd-claude-update-err.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key><string>$HOME</string>
+        <key>USER</key><string>$USER</string>
+    </dict>
+</dict>
+</plist>
+PLIST
+
+cat > "$AGENTS_DIR/com.gon9a.codex-update.plist" << PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.gon9a.codex-update</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/zsh</string>
+        <string>-lc</string>
+        <string>source \$HOME/.local/bin/env 2>/dev/null || true; export PATH="/opt/homebrew/bin:/usr/local/bin:\$HOME/.local/bin:\$PATH"; cd $INSTALL_DIR &amp;&amp; bash scripts/update_codex.sh</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key><integer>3</integer>
+        <key>Minute</key><integer>20</integer>
+    </dict>
+    <key>StandardOutPath</key><string>$INSTALL_DIR/tmp/launchd-codex-update.log</string>
+    <key>StandardErrorPath</key><string>$INSTALL_DIR/tmp/launchd-codex-update-err.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key><string>$HOME</string>
+        <key>USER</key><string>$USER</string>
+    </dict>
+</dict>
+</plist>
+PLIST
+
+# ────────────────────────────────────────────
+# 13. launchd: owlclaw 各タスク plist 生成
 # ────────────────────────────────────────────
 # 引数: task_id  hour  minute  [extra_interval_xml]
 _make_task_plist() {
@@ -224,14 +283,14 @@ _make_task_plist "visit-briefing"  20  0
 _make_task_plist "payment-watch"   21  0  "<key>Weekday</key><integer>0</integer>"
 
 # ────────────────────────────────────────────
-# 13. launchd 登録 (ユーザー権限で実行すること — sudo 不要)
+# 14. launchd 登録 (ユーザー権限で実行すること — sudo 不要)
 # ────────────────────────────────────────────
 mkdir -p "$INSTALL_DIR/tmp"
 if [[ "$(id -u)" == "0" ]]; then
   warn "launchd の登録は sudo なしで実行してください。スキップします。"
   warn "  bash scripts/setup_host.sh を sudo なしで再実行してください。"
 else
-  for label in com.gon9a.caffeinate com.gon9a.unlock-keychain; do
+  for label in com.gon9a.caffeinate com.gon9a.unlock-keychain com.gon9a.claude-update com.gon9a.codex-update; do
     launchctl unload "$AGENTS_DIR/$label.plist" 2>/dev/null || true
     launchctl load "$AGENTS_DIR/$label.plist"
     log "launchd: $label 登録完了"

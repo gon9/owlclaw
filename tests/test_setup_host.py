@@ -22,6 +22,21 @@ def test_setup_host_registers_video_digest_after_daily_digest() -> None:
     )
 
 
+def test_setup_host_registers_cli_updaters() -> None:
+    """Claude/Codex CLI updater を launchd に登録する。"""
+    script = SETUP_HOST.read_text(encoding="utf-8")
+
+    assert "com.gon9a.claude-update.plist" in script
+    assert "bash scripts/update_claude.sh" in script
+    assert "com.gon9a.codex-update.plist" in script
+    assert "bash scripts/update_codex.sh" in script
+    assert (
+        "com.gon9a.caffeinate com.gon9a.unlock-keychain "
+        "com.gon9a.claude-update com.gon9a.codex-update"
+        in script
+    )
+
+
 def test_yaml_schedules_keep_video_digest_after_daily_digest() -> None:
     """YAML の参考 cron も launchd と同じ順序に保つ。"""
     daily = yaml.safe_load((PROJ / "tasks" / "daily-digest.yaml").read_text(encoding="utf-8"))
