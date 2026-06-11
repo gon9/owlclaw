@@ -1,0 +1,29 @@
+id: bluesky-papers
+description: Bluesky AI/ML論文ダイジェスト（Starter Pack → score → Claude TOP10 → Obsidian + Slack）
+schedule:
+  type: cron
+  expr: "0 9 * * *"           # 毎朝 9:00 JST
+sources:
+  - type: bluesky
+    starter_packs: []         # 空なら tools/bluesky.py の DEFAULT_STARTER_PACKS (siki@844f88d 由来) を使用
+    handles: []               # 追加で個別ハンドル指定可
+    limit: 50
+    days: 1
+    min_engagement: 3
+    require_paper_url: true   # arxiv/HF/OpenReview/ACL を含むポストのみ
+prompt:
+  task_md: prompts/bluesky-papers.md
+  standing_order_md: prompts/standing-order.md
+state:
+  namespace: bluesky-papers
+outputs:
+  - type: obsidian
+    subdir: owlclaw/bluesky
+  - type: slack
+allowed_tools: "Read,Write"
+scoring:
+  enabled: true
+  top_n: 20                   # Claude に上位20件を渡し最終10件を選定
+quiet_hours:
+  start: "22:00"
+  end: "07:00"
