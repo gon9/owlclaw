@@ -6,8 +6,10 @@ cutoff 以降の記事を Markdown 文字列で返す。
 """
 
 import html
+import os
 import re
 import sys
+import time
 import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import UTC, datetime, timedelta, timezone
@@ -18,6 +20,16 @@ from sources.base import BaseSource
 MAX_PER_SOURCE = 10
 EXCERPT_LEN = 200
 JST = timezone(timedelta(hours=9))
+DEFAULT_FETCH_TIMEOUT_SECONDS = 15
+DEFAULT_FETCH_RETRIES = 2
+
+
+class FeedItems(list):
+    """RSS items with fetch status metadata."""
+
+    def __init__(self, items: list[dict] | None = None, *, fetch_error: bool = False) -> None:
+        super().__init__(items or [])
+        self.fetch_error = fetch_error
 
 
 def _clean(text: str) -> str:
@@ -44,21 +56,41 @@ def _parse_pub_date(raw: str) -> datetime | None:
     return None
 
 
-def _fetch_feed(url: str, name: str, cutoff: datetime) -> list[dict]:
+def _fetch_feed(url: str, name: str, cutoff: datetime) -> FeedItems:
     """指定URLのRSS/Atomフィードを取得し、cutoff以降の記事をリストで返す。"""
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": "owlclaw/1.0"})
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            content = resp.read()
-    except Exception as e:
-        print(f"  SKIP {name}: {e}", file=sys.stderr)
-        return []
+    timeout = float(os.environ.get("OWLCLAW_RSS_TIMEOUT_SECONDS", DEFAULT_FETCH_TIMEOUT_SECONDS))
+    retries = int(os.environ.get("OWLCLAW_RSS_RETRIES", DEFAULT_FETCH_RETRIES))
+    content: bytes | None = None
+    for attempt in range(1, retries + 1):
+        try:
+            req = urllib.request.Request(
+                url,
+                headers={
+                    "User-Agent": "owlclaw/1.0 (+https://github.com/gon9a/owlclaw)",
+                    "Accept": (
+                        "application/rss+xml, application/atom+xml, "
+                        "application/xml, text/xml, */*"
+                    ),
+                },
+            )
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                content = resp.read()
+            break
+        except Exception as e:  # noqa: BLE001
+            if attempt < retries:
+                print(f"  RETRY {name}: {e} (attempt {attempt}/{retries})", file=sys.stderr)
+                time.sleep(min(2 * attempt, 5))
+            else:
+                print(f"  SKIP {name}: {e}", file=sys.stderr)
+
+    if content is None:
+        return FeedItems(fetch_error=True)
 
     try:
         root = ET.fromstring(content)
     except ET.ParseError as e:
         print(f"  PARSE ERROR {name}: {e}", file=sys.stderr)
-        return []
+        return FeedItems(fetch_error=True)
 
     ns = {"atom": "http://www.w3.org/2005/Atom"}
     items: list[dict] = []
@@ -85,7 +117,7 @@ def _fetch_feed(url: str, name: str, cutoff: datetime) -> list[dict]:
                           "pub_dt": pub_dt, "pub": raw_pub[:16]})
 
     filtered = [it for it in items if it["pub_dt"] is None or it["pub_dt"] >= cutoff]
-    return filtered[:MAX_PER_SOURCE]
+    return FeedItems(filtered[:MAX_PER_SOURCE], fetch_error=False)
 
 
 class RssSource(BaseSource):
@@ -141,6 +173,7 @@ class RssSource(BaseSource):
         ]
 
         total = 0
+        fetch_errors = 0
         latest_seen: dict[str, str] = {}
 
         for s in sources:
@@ -159,6 +192,8 @@ class RssSource(BaseSource):
 
             print(f"Fetching {name} ...", file=sys.stderr)
             items = _fetch_feed(s["url"], name, effective_cutoff)
+            if getattr(items, "fetch_error", False):
+                fetch_errors += 1
             print(f"  → {len(items)} items", file=sys.stderr)
             total += len(items)
 
@@ -188,6 +223,11 @@ class RssSource(BaseSource):
             "---",
             f"合計 {total} 件。上記から最大10件を選んでキュレーション・日本語要約してください。",
         ]
+
+        if sources and fetch_errors == len(sources) and total == 0:
+            raise RuntimeError(
+                f"RSS fetch failed for all {len(sources)} sources; refusing to emit empty digest"
+            )
 
         print(f"✓ Fetched {total} items total", file=sys.stderr)
         return "\n".join(lines), latest_seen

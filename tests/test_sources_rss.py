@@ -9,9 +9,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from sources.rss import RssSource, _clean, _fetch_feed, _parse_pub_date
+from sources.rss import FeedItems, RssSource, _clean, _fetch_feed, _parse_pub_date
 
 
 class TestClean:
@@ -131,6 +133,7 @@ class TestFetchFeed:
         cutoff = datetime(2026, 4, 27, tzinfo=UTC)
         items = _fetch_feed("https://example.com/feed", "Test", cutoff)
         assert items == []
+        assert items.fetch_error is True
 
     @patch("sources.rss.urllib.request.urlopen")
     def test_xmlパースエラー時は空リストを返す(self, mock_urlopen):
@@ -138,6 +141,7 @@ class TestFetchFeed:
         cutoff = datetime(2026, 4, 27, tzinfo=UTC)
         items = _fetch_feed("https://example.com/feed", "Test", cutoff)
         assert items == []
+        assert items.fetch_error is True
 
 
 class TestRssSource:
@@ -175,6 +179,17 @@ class TestRssSource:
         cutoff = datetime(2026, 4, 28, tzinfo=UTC)
         markdown, _ = RssSource().fetch(config, cutoff)
         assert "取得できませんでした" in markdown
+
+    @patch("sources.rss._fetch_feed", return_value=FeedItems(fetch_error=True))
+    def test_全ソース取得失敗時は空ダイジェストを返さず失敗する(self, mock_fetch):
+        config = {
+            "digest": {"lookback_hours": 24, "persona": "テスト。"},
+            "sources": [{"name": "TestFeed", "url": "https://example.com/feed", "enabled": True}],
+        }
+        cutoff = datetime(2026, 4, 28, tzinfo=UTC)
+
+        with pytest.raises(RuntimeError, match="RSS fetch failed for all"):
+            RssSource().fetch(config, cutoff)
 
     @patch("sources.rss.urllib.request.urlopen")
     def test_source_filterで指定ソースのみ取得する(self, mock_urlopen):
