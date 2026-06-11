@@ -31,6 +31,7 @@ from tools.slide_schema import (  # noqa: E402
     DataSlide,
     ExhibitSlide,
     HeroSlide,
+    HtmlSlide,
     SlideDeck,
     SummarySlide,
     load_deck,
@@ -201,6 +202,23 @@ def _render_html_slide(
     )
 
 
+def _render_direct_html_slide(slide: HtmlSlide, out_png: Path) -> None:
+    """Claude が直接生成した HTML を PNG 化する。"""
+    html_path = out_png.with_suffix(".html")
+    html_path.write_text(slide.html, encoding="utf-8")
+    print(f"  [{slide.id}] Claude HTML → Puppeteer で PNG 化", file=sys.stderr)
+    node_bin = _find_executable("node")
+    subprocess.run(
+        [
+            node_bin,
+            str(PROJ / "scripts" / "render_html.js"),
+            str(html_path),
+            str(out_png),
+        ],
+        check=True,
+    )
+
+
 def render_deck(deck: SlideDeck, out_dir: Path) -> list[Path]:
     """SlideDeck の全スライドを PNG にレンダリングする。"""
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -217,6 +235,8 @@ def render_deck(deck: SlideDeck, out_dir: Path) -> list[Path]:
             _render_concept_slide(slide, deck, png_path, env)
         elif isinstance(slide, (DataSlide, ExhibitSlide, SummarySlide)):
             _render_html_slide(slide, png_path, env)
+        elif isinstance(slide, HtmlSlide):
+            _render_direct_html_slide(slide, png_path)
         else:
             raise RuntimeError(f"未対応の slide 型: {type(slide)}")
         pngs.append(png_path)

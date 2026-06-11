@@ -13,6 +13,7 @@ from tools.slide_schema import (
     ExhibitData,
     ExhibitFigure,
     HeroSlide,
+    HtmlSlide,
     KpiColumn,
     KpiThreeColData,
     SlideDeck,
@@ -98,6 +99,18 @@ def test_summary_slide_creation() -> None:
     """summary スライドが正しく構築できる。"""
     s = _summary_slide()
     assert s.data.headline == "本日のハイライト"
+
+
+def test_html_slide_creation() -> None:
+    """html スライドは完成HTMLを保持できる。"""
+    slide = HtmlSlide(
+        id="seg2",
+        type="html",
+        html="<!DOCTYPE html><html><body>ニュース</body></html>",
+        narration="ニュースです。",
+    )
+    assert slide.type == "html"
+    assert "ニュース" in slide.html
 
 
 def test_slide_deck_minimum() -> None:

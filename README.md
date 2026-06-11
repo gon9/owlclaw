@@ -21,6 +21,16 @@ tasks/<task-id>.yaml
   state/<namespace>.json  (差分追跡・累計集計)
 ```
 
+`tasks/*.yaml` の `ai.provider` / `ai.model` で、タスクごとに利用する
+AI provider とモデル alias/full name を指定できる。現在の provider 実装は
+`claude` / `anthropic`（Claude Code CLI）で、`ai.model: fable` のような値は
+`claude --print --model fable` として渡される。
+
+動画スライドの本文表現は `video.visual_mode` で切り替える。
+`imagegen` は従来どおり `concept` + Codex imagegen でPNG化し、`ppt` は
+Claude fable が `data` + `template: exhibit` のPPT風構造データを作り、
+HTMLテンプレートでPNG化する。
+
 ## 実装済みタスク
 
 ### ニュース・情報収集
@@ -31,6 +41,7 @@ tasks/<task-id>.yaml
 | `blog-watch` | 毎週月曜 9:00 | RSS（差分のみ） | Slack |
 | `arxiv-digest` | 毎朝 10:00 | arXiv API（cs.AI / cs.CL / cs.LG） | Obsidian + Slack |
 | `twitter-digest` | 毎朝 8:10 | X(Twitter) フォロー＋キーワード | Obsidian + Slack |
+| `bluesky-papers` | 毎朝 9:00 | Bluesky 公開API（AI/ML Starter Pack 起点、論文URL抽出） | Obsidian + Slack |
 | `podcast-digest` | 手動 / 任意 | Podcast / YouTube 字幕 | Obsidian + Slack |
 
 ### カレンダー・行動支援
@@ -115,6 +126,14 @@ bash scripts/oneshot.sh blog-watch
 
 # テスト用日付シミュレーション
 bash scripts/run_task.sh birthday-month --simulate-date 2026-10-01
+
+# video-digest のスライドだけを確認（slides.json + PNG を Google Drive に upload、音声/動画/Slackなし）
+bash scripts/run_task.sh video-digest --debug-slides
+bash scripts/run_task.sh video-digest --simulate-date 2026-06-11 --debug-slides
+
+# fable のスライド生成方式を軽く比較
+bash scripts/run_task.sh video-digest --simulate-date 2026-06-11 --debug-slides --visual-mode ppt
+bash scripts/run_task.sh video-digest --simulate-date 2026-06-11 --debug-slides --visual-mode html
 ```
 
 ## ファイル構成

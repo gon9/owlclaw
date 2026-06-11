@@ -6,6 +6,8 @@ schedule:
 input:
   from_task: daily-digest        # 同日に実行された daily-digest の成果物を読む
   file: note_draft.md            # 取り込むファイル名（task_dir/note_draft.md）
+  extra_files:
+    - events.md                   # スライド作成時だけ元フィードのURL/抜粋も参照する
 prompt:
   task_md: prompts/video-script.md
   standing_order_md: prompts/standing-order.md
@@ -19,10 +21,13 @@ outputs:
     # obsidian_subdir は廃止: Drive API があれば冗長で Obsidian Vault が汚れるため。
     # 復活したければ obsidian_subdir: "owlclaw/video" を追加 (Vault 内に同期コピーされる)
     retention_days: 7             # 古いローカル動画は N 日経過で自動削除
-allowed_tools: "Read,Write"
+allowed_tools: "Read,Write,WebFetch"
+ai:
+  provider: claude                  # slides.json 生成に使う AI provider
+  model: fable                      # Claude Code CLI の --model に渡す alias/full model name
 video:
   top_n: 3                        # ピックアップ件数（1, 3, 5 など。動画スライド数は top_n + 2: hero + N + summary）
-  visual_mode: imagegen           # ニュース本文は画像生成。hero / closing は固定テンプレート
+  visual_mode: html               # fable が記事から完成HTMLスライドを直接作り、PNG化する
 quiet_hours:
   start: "22:00"
   end: "07:00"

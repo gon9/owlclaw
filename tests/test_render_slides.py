@@ -12,6 +12,7 @@ from tools.slide_schema import (
     ExhibitData,
     ExhibitFigure,
     ExhibitSlide,
+    HtmlSlide,
     ImageSlide,
     SlideDeck,
     SummaryData,
@@ -175,6 +176,25 @@ def test_render_html_slide_writes_infographic_story_nodes(tmp_path: Path, monkey
     assert '<div class="node-index">01</div>' in html
     assert '<div class="node-index">02</div>' in html
     assert '<div class="node-index">03</div>' in html
+
+
+def test_render_direct_html_slide_writes_claude_html(tmp_path: Path, monkeypatch) -> None:
+    """html スライドは Claude 生成HTMLをそのまま PNG 化に渡す。"""
+    render_slides = _load_render_slides()
+    slide = HtmlSlide(
+        id="seg2",
+        type="html",
+        html="<!DOCTYPE html><html><body><h1>直接HTML</h1></body></html>",
+        narration="ニュースです。",
+    )
+    out_png = tmp_path / "seg2.png"
+    monkeypatch.setattr(render_slides, "_find_executable", lambda _: "node")
+    monkeypatch.setattr(render_slides.subprocess, "run", lambda *_, **__: None)
+
+    render_slides._render_direct_html_slide(slide, out_png)
+
+    html = out_png.with_suffix(".html").read_text(encoding="utf-8")
+    assert "<h1>直接HTML</h1>" in html
 
 
 def test_render_static_slide_writes_fixed_cover_html(tmp_path: Path, monkeypatch) -> None:

@@ -150,7 +150,16 @@ class ExhibitSlide(BaseModel):
     narration: str = Field(description="ナレーション原稿（日本語）")
 
 
-Slide = ImageSlide | DataSlide | ExhibitSlide | SummarySlide
+class HtmlSlide(BaseModel):
+    """`type=html` のスライド。Claude がHTML/CSSを直接作成する。"""
+
+    id: str = Field(description="スライドID（例: seg2）")
+    type: Literal["html"] = "html"
+    html: str = Field(description="1920x1080 の単一HTMLドキュメント")
+    narration: str = Field(description="ナレーション原稿（日本語）")
+
+
+Slide = ImageSlide | DataSlide | ExhibitSlide | SummarySlide | HtmlSlide
 
 
 class SlideDeck(BaseModel):
