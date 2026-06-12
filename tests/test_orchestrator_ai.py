@@ -52,6 +52,58 @@ def test_invoke_claude_adds_model_argument(monkeypatch) -> None:
     assert captured["kwargs"] == {"input": "prompt", "text": True, "check": True}
 
 
+def test_invoke_antigravity_uses_agy_print(monkeypatch: pytest.MonkeyPatch) -> None:
+    """antigravity provider は agy CLI の print mode に流す。"""
+    captured: dict[str, object] = {}
+
+    def fake_run(cmd, **kwargs):  # noqa: ANN001
+        captured["cmd"] = cmd
+        captured["kwargs"] = kwargs
+
+    monkeypatch.setattr(orchestrator.subprocess, "run", fake_run)
+
+    orchestrator._invoke_ai(
+        "prompt",
+        allowed_tools="Read,Write",
+        ai_config={"provider": "antigravity", "model": "Gemini 3.5 Flash (High)"},
+    )
+
+    assert captured["cmd"] == [
+        "agy",
+        "--print",
+        "--dangerously-skip-permissions",
+        "--model",
+        "Gemini 3.5 Flash (High)",
+    ]
+    assert captured["kwargs"] == {"input": "prompt", "text": True, "check": True}
+
+
+def test_agy_provider_alias_uses_antigravity_defaults() -> None:
+    """agy alias も Antigravity として扱い、HTMLスライドを既定にする。"""
+    ai_config = {"provider": "agy", "model": None}
+
+    assert orchestrator._format_ai_label(ai_config) == "agy --print"
+    assert orchestrator._default_visual_mode_for_ai(ai_config) == "html"
+
+
+def test_antigravity_model_agy_is_treated_as_cli_alias() -> None:
+    """model: agy はモデル名ではなくCLI alias として無視する。"""
+    task = {"ai": {"provider": "antigravity", "model": "agy"}}
+
+    assert orchestrator._resolve_ai_config(task) == {
+        "provider": "antigravity",
+        "model": None,
+    }
+
+
+def test_anthropic_label_uses_claude_cli() -> None:
+    """anthropic provider の実行ログは実体の claude CLI 名にする。"""
+    assert (
+        orchestrator._format_ai_label({"provider": "anthropic", "model": "sonnet"})
+        == "claude --print --model sonnet"
+    )
+
+
 def test_invoke_ai_rejects_unsupported_provider() -> None:
     """未対応 provider は誤って Claude に流さず失敗させる。"""
     with pytest.raises(ValueError, match="未対応の ai.provider"):

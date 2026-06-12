@@ -23,8 +23,10 @@ tasks/<task-id>.yaml
 
 `tasks/*.yaml` の `ai.provider` / `ai.model` で、タスクごとに利用する
 AI provider とモデル alias/full name を指定できる。現在の provider 実装は
-`claude` / `anthropic`（Claude Code CLI）で、`ai.model: fable` のような値は
-`claude --print --model fable` として渡される。
+`claude` / `anthropic`（Claude Code CLI）と `antigravity` / `agy`
+（Antigravity CLI）で、`ai.model: fable` のような値は
+`claude --print --model fable`、`ai.provider: agy` の場合は
+`agy --print --model "<model>"` として渡される。
 
 動画スライドの本文表現は `video.visual_mode` で切り替える。
 `imagegen` は従来どおり `concept` + Codex imagegen でPNG化し、`ppt` は
@@ -134,6 +136,12 @@ bash scripts/run_task.sh video-digest --simulate-date 2026-06-11 --debug-slides
 # fable のスライド生成方式を軽く比較
 bash scripts/run_task.sh video-digest --simulate-date 2026-06-11 --debug-slides --visual-mode ppt
 bash scripts/run_task.sh video-digest --simulate-date 2026-06-11 --debug-slides --visual-mode html
+
+# Antigravity CLI を使う場合は tasks/*.yaml の ai.provider を agy または antigravity にする
+# ai:
+#   provider: agy
+#   model: "Gemini 3.5 Flash (High)"
+# ※ model: agy はCLI名として扱われ、--model には渡されない
 ```
 
 ## ファイル構成

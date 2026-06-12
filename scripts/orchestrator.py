@@ -28,6 +28,8 @@ PROJ = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJ))  # sources.* のインポートに必要
 
 JST = timezone(timedelta(hours=9))
+CLAUDE_PROVIDERS = {"claude", "anthropic"}
+ANTIGRAVITY_PROVIDERS = {"antigravity", "agy"}
 
 
 def _load_task(task_id: str) -> dict:
@@ -187,6 +189,8 @@ def _resolve_ai_config(task: dict) -> dict[str, str | None]:
     provider = str(cfg.get("provider", "claude")).lower()
     model_raw = cfg.get("model")
     model = str(model_raw) if model_raw else None
+    if provider in ANTIGRAVITY_PROVIDERS and model and model.lower() == "agy":
+        model = None
     return {"provider": provider, "model": model}
 
 
@@ -194,7 +198,9 @@ def _default_visual_mode_for_ai(ai_config: dict[str, str | None]) -> str:
     """AI 設定から既定の本文スライド表現方式を決める。"""
     provider = ai_config["provider"]
     model = (ai_config.get("model") or "").lower()
-    if provider in {"claude", "anthropic"} and model == "fable":
+    if provider in CLAUDE_PROVIDERS and model == "fable":
+        return "html"
+    if provider in ANTIGRAVITY_PROVIDERS:
         return "html"
     return "imagegen"
 
@@ -343,10 +349,16 @@ def _build_claude_prompt(task: dict, task_dir: Path) -> str:
 def _format_ai_label(ai_config: dict[str, str | None]) -> str:
     """ログ表示用に provider/model を短く整形する。"""
     provider = ai_config["provider"]
+    if provider in ANTIGRAVITY_PROVIDERS:
+        cli = "agy"
+    elif provider in CLAUDE_PROVIDERS:
+        cli = "claude"
+    else:
+        cli = provider
     model = ai_config.get("model")
     if model:
-        return f"{provider} --print --model {model}"
-    return f"{provider} --print"
+        return f"{cli} --print --model {model}"
+    return f"{cli} --print"
 
 
 def _invoke_claude(
@@ -367,12 +379,32 @@ def _invoke_claude(
     )
 
 
+def _invoke_antigravity(
+    prompt: str,
+    *,
+    model: str | None = None,
+) -> None:
+    """Antigravity CLI (agy) を stdin 経由で呼び出す。"""
+    cmd = ["agy", "--print", "--dangerously-skip-permissions"]
+    if model:
+        cmd.extend(["--model", model])
+    subprocess.run(
+        cmd,
+        input=prompt,
+        text=True,
+        check=True,
+    )
+
+
 def _invoke_ai(prompt: str, allowed_tools: str, ai_config: dict[str, str | None]) -> None:
     """provider/model 設定に従って LLM を呼び出す。"""
     provider = ai_config["provider"]
     model = ai_config.get("model")
-    if provider in {"claude", "anthropic"}:
+    if provider in CLAUDE_PROVIDERS:
         _invoke_claude(prompt, allowed_tools=allowed_tools, model=model)
+        return
+    if provider in ANTIGRAVITY_PROVIDERS:
+        _invoke_antigravity(prompt, model=model)
         return
     raise ValueError(f"未対応の ai.provider: {provider}")
 
