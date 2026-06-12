@@ -59,6 +59,7 @@ def _dispatch_source(
     src_type = source_cfg.get("type")
     if src_type == "rss":
         from sources.rss import RssSource
+
         config_path = PROJ / source_cfg.get("config_ref", "config/sources.yaml")
         config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
         if "source_filter" in source_cfg:
@@ -72,6 +73,7 @@ def _dispatch_source(
         return RssSource().fetch(config, cutoff, last_seen_per_source=last_seen)
     if src_type == "gmail":
         from sources.gmail import GmailSource
+
         config = dict(source_cfg)  # コピーして注入
         config["__seen_email_ids__"] = current_state.get("seen_email_ids", [])
         cutoff = (
@@ -82,18 +84,23 @@ def _dispatch_source(
         return GmailSource().fetch(config, cutoff)
     if src_type == "arxiv":
         from sources.arxiv import ArxivSource
+
         return ArxivSource().fetch(source_cfg, global_cutoff)
     if src_type == "podcast":
         from sources.podcast import PodcastSource
+
         return PodcastSource().fetch(source_cfg, global_cutoff)
     if src_type == "twitter":
         from sources.twitter import TwitterSource
+
         return TwitterSource().fetch(source_cfg, global_cutoff)
     if src_type == "bluesky":
         from sources.bluesky import BlueskySource
+
         return BlueskySource().fetch(source_cfg, global_cutoff)
     if src_type == "calendar":
         from sources.calendar import CalendarSource
+
         config = dict(source_cfg)
         config["__notified_event_ids__"] = current_state.get("notified_event_ids", [])
         return CalendarSource().fetch(config, global_cutoff)
@@ -175,9 +182,7 @@ def _score_events_md(events_md: str, scoring_cfg: dict) -> str:
             if line.startswith("###"):
                 break
             header_lines.append(line)
-        footer_note = (
-            f"\n\n---\n*スコアリング: {len(scored)}件中上位{top_n}件を表示*\n"
-        )
+        footer_note = f"\n\n---\n*スコアリング: {len(scored)}件中上位{top_n}件を表示*\n"
         return "\n".join(header_lines) + "\n" + filtered.strip() + footer_note
 
     return annotated_md
@@ -239,10 +244,7 @@ def _copy_task_artifact(src_task: str, src_file: str, task_dir: Path) -> str:
         )
 
     content = src_path.read_text(encoding="utf-8")
-    wrapped = (
-        f"# 入力: {src_task} の成果物 ({src_rel})\n"
-        f"# 取得元: {src_path}\n\n{content}"
-    )
+    wrapped = f"# 入力: {src_task} の成果物 ({src_rel})\n# 取得元: {src_path}\n\n{content}"
     dest_path = task_dir / src_rel
     dest_path.parent.mkdir(parents=True, exist_ok=True)
     dest_path.write_text(wrapped, encoding="utf-8")
@@ -611,6 +613,31 @@ def _retry(
             time.sleep(delay)
 
 
+def _build_youtube_description(date: str, task_dir: Path) -> str:
+    """YouTube 動画の説明文を生成する。note_draft.md から見出しを抽出する。"""
+    lines: list[str] = []
+    lines.append(f"owlclaw AI Digest {date}")
+    lines.append("")
+    lines.append("AI/SaaS 関連の最新ニュースを毎日お届け。")
+    lines.append("Google Home で「OK Google, YouTube で owlclaw を再生」と話しかけてください。")
+    lines.append("")
+
+    note_path = task_dir / "note_draft.md"
+    if note_path.exists():
+        import re  # noqa: PLC0415
+
+        content = note_path.read_text(encoding="utf-8")
+        headings = re.findall(r"###\s*\d+\.\s*(.+)", content)
+        if headings:
+            lines.append("--- 目次 ---")
+            for i, heading in enumerate(headings, 1):
+                lines.append(f"{i}. {heading.strip()}")
+            lines.append("")
+
+    lines.append("#owlclaw #AI #ニュース #テック #SaaS")
+    return "\n".join(lines)
+
+
 def _dispatch_video_output(output: dict, task_dir: Path, date: str) -> None:
     """動画出力ディスパッチャ。slides.json から MP4 を生成する。
 
@@ -719,13 +746,49 @@ def _dispatch_video_output(output: dict, task_dir: Path, date: str) -> None:
         except Exception as e:  # noqa: BLE001
             print(f"  Warning: Drive upload 失敗: {e}", file=sys.stderr)
 
+    # YouTube upload (オプション)
+    youtube_url: str | None = None
+    if output.get("youtube_upload"):
+        from tools.upload_youtube import upload_to_youtube  # noqa: PLC0415
+
+        yt_title = f"owlclaw AI Digest {date}"
+        yt_description = _build_youtube_description(date, task_dir)
+        yt_privacy = output.get("youtube_privacy", "public")
+        print(f"  YouTube upload: {out_mp4.name}", file=sys.stderr)
+
+        def _yt_upload() -> None:
+            nonlocal youtube_url
+            result = upload_to_youtube(
+                out_mp4,
+                title=yt_title,
+                description=yt_description,
+                privacy_status=yt_privacy,
+            )
+            youtube_url = result.get("url")
+
+        try:
+            _retry(
+                _yt_upload,
+                label="youtube_upload",
+                max_attempts=retry_attempts,
+                base_delay_seconds=max(base_delay, 10.0),
+            )
+            print(f"  YouTube URL: {youtube_url}", file=sys.stderr)
+        except Exception as e:  # noqa: BLE001
+            print(f"  Warning: YouTube upload 失敗: {e}", file=sys.stderr)
+
     # Slack 通知
     if output.get("slack_notify"):
+        link_lines: list[str] = []
         if drive_url:
+            link_lines.append(f":link: <{drive_url}|Google Drive で再生>")
+        if youtube_url:
+            link_lines.append(f":youtube: <{youtube_url}|YouTube で再生>")
+        if link_lines:
             slack_msg = (
                 f":movie_camera: *動画ダイジェスト生成完了* `{date}`\n"
-                f":link: <{drive_url}|Google Drive で再生>\n"
-                f":file_folder: `{out_mp4.name}`"
+                + "\n".join(link_lines)
+                + f"\n:file_folder: `{out_mp4.name}`"
             )
         else:
             slack_msg = (
@@ -814,6 +877,7 @@ def main() -> None:
     task_dir.mkdir(parents=True, exist_ok=True)
 
     import state as state_mod  # noqa: PLC0415  (scripts/state.py)
+
     current_state = state_mod.load(task["state"]["namespace"])
 
     print(f"=== [{task_id}] 1/4 sources fetch ===", file=sys.stderr)
@@ -857,13 +921,12 @@ def main() -> None:
     (task_dir / "state.json").write_text(
         json.dumps(current_state, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    (task_dir / "profile.yaml").write_text(
-        yaml.dump(profile, allow_unicode=True), encoding="utf-8"
-    )
+    (task_dir / "profile.yaml").write_text(yaml.dump(profile, allow_unicode=True), encoding="utf-8")
 
     # travel-checklist 向け: context.md (D-N 判定済み旅程一覧) を生成
     if task_id == "travel-checklist":
         from tools.travel import build_context_md, get_pending_checklists
+
         trips = current_state.get("trips", {})
         pending = get_pending_checklists(trips, now.astimezone(JST).date())
         if not pending:
@@ -927,11 +990,10 @@ def main() -> None:
     trips_update_path = task_dir / "trips_update.json"
     if trips_update_path.exists() and trips_update_path.stat().st_size > 0:
         from tools.travel import merge_trips
+
         try:
             updates = json.loads(trips_update_path.read_text(encoding="utf-8"))
-            current_state["trips"] = merge_trips(
-                current_state.get("trips", {}), updates
-            )
+            current_state["trips"] = merge_trips(current_state.get("trips", {}), updates)
             print(
                 f"✓ trips_update: {list(updates.keys())} をマージしました",
                 file=sys.stderr,
