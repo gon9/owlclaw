@@ -59,6 +59,7 @@ def _dispatch_source(
     src_type = source_cfg.get("type")
     if src_type == "rss":
         from sources.rss import RssSource
+
         config_path = PROJ / source_cfg.get("config_ref", "config/sources.yaml")
         config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
         if "source_filter" in source_cfg:
@@ -72,6 +73,7 @@ def _dispatch_source(
         return RssSource().fetch(config, cutoff, last_seen_per_source=last_seen)
     if src_type == "gmail":
         from sources.gmail import GmailSource
+
         config = dict(source_cfg)  # コピーして注入
         config["__seen_email_ids__"] = current_state.get("seen_email_ids", [])
         cutoff = (
@@ -82,18 +84,23 @@ def _dispatch_source(
         return GmailSource().fetch(config, cutoff)
     if src_type == "arxiv":
         from sources.arxiv import ArxivSource
+
         return ArxivSource().fetch(source_cfg, global_cutoff)
     if src_type == "podcast":
         from sources.podcast import PodcastSource
+
         return PodcastSource().fetch(source_cfg, global_cutoff)
     if src_type == "twitter":
         from sources.twitter import TwitterSource
+
         return TwitterSource().fetch(source_cfg, global_cutoff)
     if src_type == "bluesky":
         from sources.bluesky import BlueskySource
+
         return BlueskySource().fetch(source_cfg, global_cutoff)
     if src_type == "calendar":
         from sources.calendar import CalendarSource
+
         config = dict(source_cfg)
         config["__notified_event_ids__"] = current_state.get("notified_event_ids", [])
         return CalendarSource().fetch(config, global_cutoff)
@@ -175,9 +182,7 @@ def _score_events_md(events_md: str, scoring_cfg: dict) -> str:
             if line.startswith("###"):
                 break
             header_lines.append(line)
-        footer_note = (
-            f"\n\n---\n*スコアリング: {len(scored)}件中上位{top_n}件を表示*\n"
-        )
+        footer_note = f"\n\n---\n*スコアリング: {len(scored)}件中上位{top_n}件を表示*\n"
         return "\n".join(header_lines) + "\n" + filtered.strip() + footer_note
 
     return annotated_md
@@ -192,6 +197,43 @@ def _resolve_ai_config(task: dict) -> dict[str, str | None]:
     if provider in ANTIGRAVITY_PROVIDERS and model and model.lower() == "agy":
         model = None
     return {"provider": provider, "model": model}
+
+
+def _normalize_ai_model_list(raw: object) -> list[str]:
+    """YAML/環境変数由来の model リストを正規化する。"""
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        return [item.strip() for item in raw.split(",") if item.strip()]
+    if isinstance(raw, list):
+        return [str(item).strip() for item in raw if str(item).strip()]
+    raise ValueError(f"ai.fallback_models は文字列または配列で指定してください: {raw!r}")
+
+
+def _resolve_ai_attempts(task: dict) -> list[dict[str, str | None]]:
+    """primary model と fallback model の実行候補を順序付きで返す。"""
+    primary = _resolve_ai_config(task)
+    attempts = [primary]
+    provider = primary["provider"]
+    cfg = task.get("ai") or {}
+    fallback_models = _normalize_ai_model_list(cfg.get("fallback_models"))
+    env_fallback_models = _normalize_ai_model_list(os.environ.get("OWLCLAW_AI_FALLBACK_MODELS"))
+    if env_fallback_models:
+        fallback_models = env_fallback_models
+
+    if provider not in CLAUDE_PROVIDERS and provider not in ANTIGRAVITY_PROVIDERS:
+        return attempts
+
+    seen = {primary.get("model")}
+    for model in fallback_models:
+        if provider in ANTIGRAVITY_PROVIDERS and model.lower() == "agy":
+            model = ""
+        normalized = model or None
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        attempts.append({"provider": provider, "model": normalized})
+    return attempts
 
 
 def _default_visual_mode_for_ai(ai_config: dict[str, str | None]) -> str:
@@ -239,10 +281,7 @@ def _copy_task_artifact(src_task: str, src_file: str, task_dir: Path) -> str:
         )
 
     content = src_path.read_text(encoding="utf-8")
-    wrapped = (
-        f"# 入力: {src_task} の成果物 ({src_rel})\n"
-        f"# 取得元: {src_path}\n\n{content}"
-    )
+    wrapped = f"# 入力: {src_task} の成果物 ({src_rel})\n# 取得元: {src_path}\n\n{content}"
     dest_path = task_dir / src_rel
     dest_path.parent.mkdir(parents=True, exist_ok=True)
     dest_path.write_text(wrapped, encoding="utf-8")
@@ -407,6 +446,31 @@ def _invoke_ai(prompt: str, allowed_tools: str, ai_config: dict[str, str | None]
         _invoke_antigravity(prompt, model=model)
         return
     raise ValueError(f"未対応の ai.provider: {provider}")
+
+
+def _invoke_ai_with_fallback(
+    prompt: str,
+    allowed_tools: str,
+    ai_attempts: list[dict[str, str | None]],
+) -> None:
+    """primary AI が失敗した場合に fallback model を順番に試す。"""
+    if not ai_attempts:
+        raise ValueError("AI 実行候補がありません")
+
+    failures: list[tuple[str, BaseException]] = []
+    for index, ai_config in enumerate(ai_attempts, 1):
+        label = _format_ai_label(ai_config)
+        if index > 1:
+            print(f"  fallback AI retry: {label}", file=sys.stderr)
+        try:
+            _invoke_ai(prompt, allowed_tools=allowed_tools, ai_config=ai_config)
+            return
+        except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+            failures.append((label, exc))
+            if index >= len(ai_attempts):
+                details = "; ".join(f"{failed_label}: {exc}" for failed_label, exc in failures)
+                raise RuntimeError(f"AI 実行が全候補で失敗しました: {details}") from exc
+            print(f"  Warning: AI 実行失敗: {label}: {exc}", file=sys.stderr)
 
 
 def _resolve_obsidian_dest(output: dict, date: str) -> str:
@@ -611,6 +675,60 @@ def _retry(
             time.sleep(delay)
 
 
+def _build_youtube_description(date: str, task_dir: Path) -> str:
+    """YouTube 動画の説明文を生成する。note_draft.md から見出しを抽出する。"""
+    lines: list[str] = []
+    lines.append(f"owlclaw AI Digest {date}")
+    lines.append("")
+    lines.append("AI/SaaS 関連の最新ニュースを毎日お届け。")
+    lines.append("Google Home で「OK Google, YouTube で owlclaw を再生」と話しかけてください。")
+    lines.append("")
+
+    note_path = task_dir / "note_draft.md"
+    if note_path.exists():
+        import re  # noqa: PLC0415
+
+        content = note_path.read_text(encoding="utf-8")
+        headings = re.findall(r"###\s*\d+\.\s*(.+)", content)
+        if headings:
+            lines.append("--- 目次 ---")
+            for i, heading in enumerate(headings, 1):
+                lines.append(f"{i}. {heading.strip()}")
+            lines.append("")
+
+    lines.append("#owlclaw #AI #ニュース #テック #SaaS")
+    return "\n".join(lines)
+
+
+def _youtube_watch_url(video_id: str) -> str:
+    """YouTube video ID から watch URL を組み立てる。"""
+    return f"https://www.youtube.com/watch?v={video_id}"
+
+
+def _load_youtube_upload_manifest(task_dir: Path) -> dict[str, dict[str, str]]:
+    """日付別 YouTube upload manifest を読み込む。"""
+    path = task_dir / "youtube_uploads.json"
+    if not path.exists() or path.stat().st_size == 0:
+        return {}
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        return {}
+
+    manifest: dict[str, dict[str, str]] = {}
+    for date, value in raw.items():
+        if isinstance(value, str):
+            manifest[date] = {"id": value, "url": _youtube_watch_url(value)}
+        elif isinstance(value, dict):
+            manifest[date] = {str(k): str(v) for k, v in value.items()}
+    return manifest
+
+
+def _save_youtube_upload_manifest(task_dir: Path, manifest: dict[str, dict[str, str]]) -> None:
+    """日付別 YouTube upload manifest を保存する。"""
+    path = task_dir / "youtube_uploads.json"
+    path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def _dispatch_video_output(output: dict, task_dir: Path, date: str) -> None:
     """動画出力ディスパッチャ。slides.json から MP4 を生成する。
 
@@ -719,13 +837,58 @@ def _dispatch_video_output(output: dict, task_dir: Path, date: str) -> None:
         except Exception as e:  # noqa: BLE001
             print(f"  Warning: Drive upload 失敗: {e}", file=sys.stderr)
 
+    # YouTube upload (オプション)
+    youtube_url: str | None = None
+    if output.get("youtube_upload"):
+        from tools.upload_youtube import upload_to_youtube  # noqa: PLC0415
+
+        yt_title = f"owlclaw AI Digest {date}"
+        yt_description = _build_youtube_description(date, task_dir)
+        yt_privacy = output.get("youtube_privacy", "public")
+        manifest = _load_youtube_upload_manifest(task_dir)
+        existing = manifest.get(date) or {}
+        youtube_url = existing.get("url")
+        if youtube_url:
+            print(
+                f"  YouTube upload skip: {date} は既に upload 済み: {youtube_url}",
+                file=sys.stderr,
+            )
+        else:
+            print(f"  YouTube upload: {out_mp4.name}", file=sys.stderr)
+            try:
+                result = upload_to_youtube(
+                    out_mp4,
+                    title=yt_title,
+                    description=yt_description,
+                    privacy_status=yt_privacy,
+                )
+                video_id = result.get("id")
+                youtube_url = result.get("url")
+                if video_id:
+                    youtube_url = youtube_url or _youtube_watch_url(video_id)
+                    manifest[date] = {
+                        "id": video_id,
+                        "url": youtube_url,
+                        "title": yt_title,
+                        "uploaded_at": datetime.now(UTC).isoformat(),
+                    }
+                    _save_youtube_upload_manifest(task_dir, manifest)
+                print(f"  YouTube URL: {youtube_url}", file=sys.stderr)
+            except Exception as e:  # noqa: BLE001
+                print(f"  Warning: YouTube upload 失敗: {e}", file=sys.stderr)
+
     # Slack 通知
     if output.get("slack_notify"):
+        link_lines: list[str] = []
         if drive_url:
+            link_lines.append(f":link: <{drive_url}|Google Drive で再生>")
+        if youtube_url:
+            link_lines.append(f":youtube: <{youtube_url}|YouTube で再生>")
+        if link_lines:
             slack_msg = (
                 f":movie_camera: *動画ダイジェスト生成完了* `{date}`\n"
-                f":link: <{drive_url}|Google Drive で再生>\n"
-                f":file_folder: `{out_mp4.name}`"
+                + "\n".join(link_lines)
+                + f"\n:file_folder: `{out_mp4.name}`"
             )
         else:
             slack_msg = (
@@ -814,6 +977,7 @@ def main() -> None:
     task_dir.mkdir(parents=True, exist_ok=True)
 
     import state as state_mod  # noqa: PLC0415  (scripts/state.py)
+
     current_state = state_mod.load(task["state"]["namespace"])
 
     print(f"=== [{task_id}] 1/4 sources fetch ===", file=sys.stderr)
@@ -857,13 +1021,12 @@ def main() -> None:
     (task_dir / "state.json").write_text(
         json.dumps(current_state, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    (task_dir / "profile.yaml").write_text(
-        yaml.dump(profile, allow_unicode=True), encoding="utf-8"
-    )
+    (task_dir / "profile.yaml").write_text(yaml.dump(profile, allow_unicode=True), encoding="utf-8")
 
     # travel-checklist 向け: context.md (D-N 判定済み旅程一覧) を生成
     if task_id == "travel-checklist":
         from tools.travel import build_context_md, get_pending_checklists
+
         trips = current_state.get("trips", {})
         pending = get_pending_checklists(trips, now.astimezone(JST).date())
         if not pending:
@@ -881,14 +1044,18 @@ def main() -> None:
     _clear_stale_ai_outputs(task, task_dir)
 
     step_claude = 4 if scoring_cfg.get("enabled") else 3
-    ai_config = _resolve_ai_config(task)
+    ai_attempts = _resolve_ai_attempts(task)
+    ai_config = ai_attempts[0]
+    fallback_labels = [_format_ai_label(config) for config in ai_attempts[1:]]
     print(
         f"=== [{task_id}] {step_claude}/{steps} {_format_ai_label(ai_config)} ===",
         file=sys.stderr,
     )
+    if fallback_labels:
+        print(f"  fallback models: {', '.join(fallback_labels)}", file=sys.stderr)
     allowed_tools = task.get("allowed_tools", "Read,Write")
     prompt = _build_claude_prompt(task, task_dir)
-    _invoke_ai(prompt, allowed_tools=allowed_tools, ai_config=ai_config)
+    _invoke_ai_with_fallback(prompt, allowed_tools=allowed_tools, ai_attempts=ai_attempts)
 
     if args.debug_slides:
         print(f"=== [{task_id}] debug slides only ===", file=sys.stderr)
@@ -927,11 +1094,10 @@ def main() -> None:
     trips_update_path = task_dir / "trips_update.json"
     if trips_update_path.exists() and trips_update_path.stat().st_size > 0:
         from tools.travel import merge_trips
+
         try:
             updates = json.loads(trips_update_path.read_text(encoding="utf-8"))
-            current_state["trips"] = merge_trips(
-                current_state.get("trips", {}), updates
-            )
+            current_state["trips"] = merge_trips(current_state.get("trips", {}), updates)
             print(
                 f"✓ trips_update: {list(updates.keys())} をマージしました",
                 file=sys.stderr,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -114,6 +115,42 @@ def test_invoke_ai_rejects_unsupported_provider() -> None:
         )
 
 
+def test_resolve_ai_attempts_adds_fallback_models() -> None:
+    """ai.fallback_models は primary model の後続候補として解決される。"""
+    task = {"ai": {"provider": "claude", "model": "fable", "fallback_models": ["opus"]}}
+
+    assert orchestrator._resolve_ai_attempts(task) == [
+        {"provider": "claude", "model": "fable"},
+        {"provider": "claude", "model": "opus"},
+    ]
+
+
+def test_invoke_ai_with_fallback_tries_next_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    """primary model の CLI 実行が失敗したら fallback model を試す。"""
+    calls: list[list[str]] = []
+
+    def fake_run(cmd, **_kwargs):  # noqa: ANN001
+        calls.append(cmd)
+        if cmd[-1] == "fable":
+            raise subprocess.CalledProcessError(returncode=1, cmd=cmd)
+
+    monkeypatch.setattr(orchestrator.subprocess, "run", fake_run)
+
+    orchestrator._invoke_ai_with_fallback(
+        "prompt",
+        allowed_tools="Read,Write",
+        ai_attempts=[
+            {"provider": "claude", "model": "fable"},
+            {"provider": "claude", "model": "opus"},
+        ],
+    )
+
+    assert calls == [
+        ["claude", "--print", "--allowedTools", "Read,Write", "--model", "fable"],
+        ["claude", "--print", "--allowedTools", "Read,Write", "--model", "opus"],
+    ]
+
+
 def test_video_digest_sets_fable_model() -> None:
     """video-digest は slides.json 生成モデルとして fable を指定する。"""
     import yaml
@@ -124,6 +161,18 @@ def test_video_digest_sets_fable_model() -> None:
         "provider": "claude",
         "model": "fable",
     }
+
+
+def test_video_digest_sets_opus_fallback_model() -> None:
+    """video-digest は fable 失敗時に opus へ fallback する。"""
+    import yaml
+
+    task = yaml.safe_load((PROJ / "tasks" / "video-digest.yaml").read_text(encoding="utf-8"))
+
+    assert orchestrator._resolve_ai_attempts(task) == [
+        {"provider": "claude", "model": "fable"},
+        {"provider": "claude", "model": "opus"},
+    ]
 
 
 def test_fable_defaults_to_html_visual_mode() -> None:

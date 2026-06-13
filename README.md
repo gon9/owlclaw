@@ -27,6 +27,9 @@ AI provider とモデル alias/full name を指定できる。現在の provider
 （Antigravity CLI）で、`ai.model: fable` のような値は
 `claude --print --model fable`、`ai.provider: agy` の場合は
 `agy --print --model "<model>"` として渡される。
+`ai.fallback_models` を指定すると、primary model の CLI 実行が失敗した場合に
+同じ provider で後続モデルを順番に試す。運用時だけ差し替えたい場合は
+`OWLCLAW_AI_FALLBACK_MODELS=opus,sonnet` のようにカンマ区切りで上書きできる。
 
 動画スライドの本文表現は `video.visual_mode` で切り替える。
 `imagegen` は従来どおり `concept` + Codex imagegen でPNG化し、`ppt` は
@@ -113,6 +116,26 @@ uv run python scripts/auth_gmail.py
 ブラウザが開き、Google アカウントでの許可画面が表示される。
 承認すると `secrets/gmail_token.json` が生成され、以降は自動リフレッシュされる。
 
+### 6. YouTube OAuth 設定（video-digest → YouTube アップロードを使う場合）
+
+1. [GCP コンソール](https://console.cloud.google.com/) → **API とサービス** → **ライブラリ** → **YouTube Data API v3** を有効化
+2. **認証情報** → Drive/Calendar と同じ **OAuth 2.0 クライアント ID** の JSON をダウンロードして `secrets/youtube_oauth.json` として保存（既存の `drive_oauth.json` と同一ファイルのコピーで OK）
+
+```bash
+uv run python scripts/auth_youtube.py
+```
+
+ブラウザが開き、YouTube upload 権限の許可画面が表示される。
+承認すると `secrets/youtube_token.json` が生成され、以降は自動リフレッシュされる。
+
+#### Google Home での再生
+
+動画タイトルが `owlclaw AI Digest YYYY-MM-DD` で統一されるため、Google Home / Nest デバイスから以下のように再生可能:
+
+```
+「OK Google, YouTube で owlclaw を再生」
+```
+
 > **注意**: `secrets/` は `.gitignore` 済み。リポジトリにコミットしないこと。
 
 ## 実行方法
@@ -159,9 +182,12 @@ bash scripts/run_task.sh video-digest --simulate-date 2026-06-11 --debug-slides 
 | `sources/twitter.py` | X(Twitter) source プラグイン |
 | `sources/podcast.py` | Podcast / YouTube 字幕 source プラグイン |
 | `tools/travel.py` | 旅程台帳ユーティリティ（D-N 計算・旅程マージ等） |
+| `tools/upload_drive.py` | Google Drive アップロードユーティリティ |
+| `tools/upload_youtube.py` | YouTube アップロードユーティリティ（Google Home 再生用） |
 | `scripts/orchestrator.py` | タスクオーケストレーター |
 | `scripts/auth_gmail.py` | Gmail OAuth 初回認証フロー |
 | `scripts/auth_calendar.py` | Google Calendar OAuth 初回認証フロー |
+| `scripts/auth_youtube.py` | YouTube OAuth 初回認証フロー |
 | `scripts/run_task.sh` | `orchestrator.py` を `uv run` で起動するラッパー |
 | `scripts/oneshot.sh` | 手動1回実行ラッパー |
 | `scripts/write_obsidian.sh` | Obsidian vault への書き出し |

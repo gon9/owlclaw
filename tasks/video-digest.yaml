@@ -18,6 +18,8 @@ outputs:
     slack_notify: true            # 完成通知を Slack に投稿 (Drive URL 付き)
     drive_upload: true            # Google Drive API にアップロード + 共有リンク取得
     drive_folder: "owlclaw/video-digest"  # Drive 上の保存先 (階層 OK)
+    youtube_upload: true          # YouTube にアップロード (Google Home 再生用)
+    youtube_privacy: public       # public / unlisted / private
     # obsidian_subdir は廃止: Drive API があれば冗長で Obsidian Vault が汚れるため。
     # 復活したければ obsidian_subdir: "owlclaw/video" を追加 (Vault 内に同期コピーされる)
     retention_days: 7             # 古いローカル動画は N 日経過で自動削除
@@ -25,6 +27,8 @@ allowed_tools: "Read,Write,WebFetch"
 ai:
   provider: claude                  # slides.json 生成に使う AI provider
   model: fable                      # Claude Code CLI の --model に渡す alias/full model name
+  fallback_models:
+    - opus                           # fable が失敗した場合に同じプロンプトを再試行
 video:
   top_n: 3                        # ピックアップ件数（1, 3, 5 など。動画スライド数は top_n + 2: hero + N + summary）
   visual_mode: html               # fable が記事から完成HTMLスライドを直接作り、PNG化する
