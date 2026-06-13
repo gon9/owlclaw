@@ -251,3 +251,30 @@ class TestCalendarSourceFetch:
         ids = state.get("__calendar_notified_ids__", [])
         assert "with_att" in ids
         assert "no_att" not in ids
+
+    @patch("sources.calendar._build_service")
+    def test_physical_event_without_attendees_included(self, mock_build):
+        """visit-briefing 回帰: 外部参加者フィルタなしなら参加者なしの物理外出も拾う。
+
+        個人外出（例: ワイン会）は物理ロケーションがあっても招待参加者がいない。
+        attendees_have_external を付けない場合、これらが除外されてはならない。
+        """
+        service = MagicMock()
+        mock_build.return_value = service
+        personal_outing = _make_event(
+            event_id="wine_party",
+            summary="ワイン会",
+            location="タイムレス渋谷（Timeless Shibuya）, 東京都渋谷区神宮前5-34-10",
+            attendees=[],
+        )
+        service.events.return_value.list.return_value.execute.return_value = {
+            "items": [personal_outing]
+        }
+
+        source = CalendarSource()
+        # visit-briefing.yaml と同じ filter（location_kind のみ、external 要件なし）
+        config = {"range": "tomorrow", "filter": {"location_kind": "physical"}}
+        md, state = source.fetch(config, datetime.now(UTC))
+
+        assert "wine_party" in state.get("__calendar_notified_ids__", [])
+        assert "ワイン会" in md
