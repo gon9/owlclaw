@@ -8,9 +8,9 @@ sources:
     range: tomorrow
     calendar_id: primary
     filter:
-      location_kind: physical          # 物理開催のみ
-      attendees_have_external: any     # 外部参加者あり
-    owner_domain: null
+      location_kind: physical          # 物理開催のみ（オンライン会議は除外）
+      # attendees_have_external は外す: 参加者なしの個人外出（食事・通院・美容院等）も
+      # 翌日リマインド対象に含める。種別の出し分けはプロンプト側で行う。
 prompt:
   task_md: prompts/visit-briefing.md
   standing_order_md: prompts/standing-order.md
