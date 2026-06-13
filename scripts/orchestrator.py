@@ -638,6 +638,35 @@ def _build_youtube_description(date: str, task_dir: Path) -> str:
     return "\n".join(lines)
 
 
+def _youtube_watch_url(video_id: str) -> str:
+    """YouTube video ID から watch URL を組み立てる。"""
+    return f"https://www.youtube.com/watch?v={video_id}"
+
+
+def _load_youtube_upload_manifest(task_dir: Path) -> dict[str, dict[str, str]]:
+    """日付別 YouTube upload manifest を読み込む。"""
+    path = task_dir / "youtube_uploads.json"
+    if not path.exists() or path.stat().st_size == 0:
+        return {}
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        return {}
+
+    manifest: dict[str, dict[str, str]] = {}
+    for date, value in raw.items():
+        if isinstance(value, str):
+            manifest[date] = {"id": value, "url": _youtube_watch_url(value)}
+        elif isinstance(value, dict):
+            manifest[date] = {str(k): str(v) for k, v in value.items()}
+    return manifest
+
+
+def _save_youtube_upload_manifest(task_dir: Path, manifest: dict[str, dict[str, str]]) -> None:
+    """日付別 YouTube upload manifest を保存する。"""
+    path = task_dir / "youtube_uploads.json"
+    path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def _dispatch_video_output(output: dict, task_dir: Path, date: str) -> None:
     """動画出力ディスパッチャ。slides.json から MP4 を生成する。
 
@@ -754,28 +783,37 @@ def _dispatch_video_output(output: dict, task_dir: Path, date: str) -> None:
         yt_title = f"owlclaw AI Digest {date}"
         yt_description = _build_youtube_description(date, task_dir)
         yt_privacy = output.get("youtube_privacy", "public")
-        print(f"  YouTube upload: {out_mp4.name}", file=sys.stderr)
-
-        def _yt_upload() -> None:
-            nonlocal youtube_url
-            result = upload_to_youtube(
-                out_mp4,
-                title=yt_title,
-                description=yt_description,
-                privacy_status=yt_privacy,
+        manifest = _load_youtube_upload_manifest(task_dir)
+        existing = manifest.get(date) or {}
+        youtube_url = existing.get("url")
+        if youtube_url:
+            print(
+                f"  YouTube upload skip: {date} は既に upload 済み: {youtube_url}",
+                file=sys.stderr,
             )
-            youtube_url = result.get("url")
-
-        try:
-            _retry(
-                _yt_upload,
-                label="youtube_upload",
-                max_attempts=retry_attempts,
-                base_delay_seconds=max(base_delay, 10.0),
-            )
-            print(f"  YouTube URL: {youtube_url}", file=sys.stderr)
-        except Exception as e:  # noqa: BLE001
-            print(f"  Warning: YouTube upload 失敗: {e}", file=sys.stderr)
+        else:
+            print(f"  YouTube upload: {out_mp4.name}", file=sys.stderr)
+            try:
+                result = upload_to_youtube(
+                    out_mp4,
+                    title=yt_title,
+                    description=yt_description,
+                    privacy_status=yt_privacy,
+                )
+                video_id = result.get("id")
+                youtube_url = result.get("url")
+                if video_id:
+                    youtube_url = youtube_url or _youtube_watch_url(video_id)
+                    manifest[date] = {
+                        "id": video_id,
+                        "url": youtube_url,
+                        "title": yt_title,
+                        "uploaded_at": datetime.now(UTC).isoformat(),
+                    }
+                    _save_youtube_upload_manifest(task_dir, manifest)
+                print(f"  YouTube URL: {youtube_url}", file=sys.stderr)
+            except Exception as e:  # noqa: BLE001
+                print(f"  Warning: YouTube upload 失敗: {e}", file=sys.stderr)
 
     # Slack 通知
     if output.get("slack_notify"):

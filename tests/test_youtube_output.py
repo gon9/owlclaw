@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import types
 from pathlib import Path
 
@@ -68,6 +69,10 @@ def test_youtube_upload_in_video_output(
     assert yt_url in slack_msg
     assert "YouTube で再生" in slack_msg
 
+    manifest = json.loads((task_dir / "youtube_uploads.json").read_text(encoding="utf-8"))
+    assert manifest["2026-06-12"]["id"] == "testid123"
+    assert manifest["2026-06-12"]["url"] == yt_url
+
 
 def test_youtube_and_drive_both_in_slack(
     tmp_path: Path,
@@ -128,6 +133,54 @@ def test_youtube_and_drive_both_in_slack(
     assert drive_link in slack_msg
     assert yt_url in slack_msg
     assert "Google Drive で再生" in slack_msg
+    assert "YouTube で再生" in slack_msg
+
+
+def test_youtube_upload_skips_existing_manifest(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """同じ日付が manifest にあれば再 upload せず既存 URL を Slack に載せる。"""
+    task_dir = tmp_path / "video-digest"
+    task_dir.mkdir()
+    (task_dir / "slides.json").write_text("{}", encoding="utf-8")
+    existing_url = "https://www.youtube.com/watch?v=existing123"
+    (task_dir / "youtube_uploads.json").write_text(
+        json.dumps({"2026-06-12": {"id": "existing123", "url": existing_url}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(orchestrator, "_purge_old_videos", lambda *_: 0)
+    monkeypatch.setattr(orchestrator.subprocess, "run", lambda *_, **__: None)
+    monkeypatch.setitem(
+        orchestrator.sys.modules,
+        "scripts.check_video_digest",
+        types.SimpleNamespace(validate_video_digest=lambda **_: []),
+    )
+
+    def fail_upload(*_args, **_kwargs):
+        raise AssertionError("upload_to_youtube should not be called")
+
+    monkeypatch.setitem(
+        orchestrator.sys.modules,
+        "tools.upload_youtube",
+        type(
+            "M",
+            (),
+            {"upload_to_youtube": staticmethod(fail_upload)},
+        )(),
+    )
+
+    orchestrator._dispatch_video_output(
+        {
+            "youtube_upload": True,
+            "slack_notify": True,
+        },
+        task_dir,
+        "2026-06-12",
+    )
+
+    slack_msg = (task_dir / "slack_video.txt").read_text(encoding="utf-8")
+    assert existing_url in slack_msg
     assert "YouTube で再生" in slack_msg
 
 
