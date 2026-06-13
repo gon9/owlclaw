@@ -199,6 +199,43 @@ def _resolve_ai_config(task: dict) -> dict[str, str | None]:
     return {"provider": provider, "model": model}
 
 
+def _normalize_ai_model_list(raw: object) -> list[str]:
+    """YAML/環境変数由来の model リストを正規化する。"""
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        return [item.strip() for item in raw.split(",") if item.strip()]
+    if isinstance(raw, list):
+        return [str(item).strip() for item in raw if str(item).strip()]
+    raise ValueError(f"ai.fallback_models は文字列または配列で指定してください: {raw!r}")
+
+
+def _resolve_ai_attempts(task: dict) -> list[dict[str, str | None]]:
+    """primary model と fallback model の実行候補を順序付きで返す。"""
+    primary = _resolve_ai_config(task)
+    attempts = [primary]
+    provider = primary["provider"]
+    cfg = task.get("ai") or {}
+    fallback_models = _normalize_ai_model_list(cfg.get("fallback_models"))
+    env_fallback_models = _normalize_ai_model_list(os.environ.get("OWLCLAW_AI_FALLBACK_MODELS"))
+    if env_fallback_models:
+        fallback_models = env_fallback_models
+
+    if provider not in CLAUDE_PROVIDERS and provider not in ANTIGRAVITY_PROVIDERS:
+        return attempts
+
+    seen = {primary.get("model")}
+    for model in fallback_models:
+        if provider in ANTIGRAVITY_PROVIDERS and model.lower() == "agy":
+            model = ""
+        normalized = model or None
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        attempts.append({"provider": provider, "model": normalized})
+    return attempts
+
+
 def _default_visual_mode_for_ai(ai_config: dict[str, str | None]) -> str:
     """AI 設定から既定の本文スライド表現方式を決める。"""
     provider = ai_config["provider"]
@@ -409,6 +446,31 @@ def _invoke_ai(prompt: str, allowed_tools: str, ai_config: dict[str, str | None]
         _invoke_antigravity(prompt, model=model)
         return
     raise ValueError(f"未対応の ai.provider: {provider}")
+
+
+def _invoke_ai_with_fallback(
+    prompt: str,
+    allowed_tools: str,
+    ai_attempts: list[dict[str, str | None]],
+) -> None:
+    """primary AI が失敗した場合に fallback model を順番に試す。"""
+    if not ai_attempts:
+        raise ValueError("AI 実行候補がありません")
+
+    failures: list[tuple[str, BaseException]] = []
+    for index, ai_config in enumerate(ai_attempts, 1):
+        label = _format_ai_label(ai_config)
+        if index > 1:
+            print(f"  fallback AI retry: {label}", file=sys.stderr)
+        try:
+            _invoke_ai(prompt, allowed_tools=allowed_tools, ai_config=ai_config)
+            return
+        except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+            failures.append((label, exc))
+            if index >= len(ai_attempts):
+                details = "; ".join(f"{failed_label}: {exc}" for failed_label, exc in failures)
+                raise RuntimeError(f"AI 実行が全候補で失敗しました: {details}") from exc
+            print(f"  Warning: AI 実行失敗: {label}: {exc}", file=sys.stderr)
 
 
 def _resolve_obsidian_dest(output: dict, date: str) -> str:
@@ -982,14 +1044,18 @@ def main() -> None:
     _clear_stale_ai_outputs(task, task_dir)
 
     step_claude = 4 if scoring_cfg.get("enabled") else 3
-    ai_config = _resolve_ai_config(task)
+    ai_attempts = _resolve_ai_attempts(task)
+    ai_config = ai_attempts[0]
+    fallback_labels = [_format_ai_label(config) for config in ai_attempts[1:]]
     print(
         f"=== [{task_id}] {step_claude}/{steps} {_format_ai_label(ai_config)} ===",
         file=sys.stderr,
     )
+    if fallback_labels:
+        print(f"  fallback models: {', '.join(fallback_labels)}", file=sys.stderr)
     allowed_tools = task.get("allowed_tools", "Read,Write")
     prompt = _build_claude_prompt(task, task_dir)
-    _invoke_ai(prompt, allowed_tools=allowed_tools, ai_config=ai_config)
+    _invoke_ai_with_fallback(prompt, allowed_tools=allowed_tools, ai_attempts=ai_attempts)
 
     if args.debug_slides:
         print(f"=== [{task_id}] debug slides only ===", file=sys.stderr)

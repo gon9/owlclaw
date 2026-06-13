@@ -27,6 +27,9 @@ AI provider とモデル alias/full name を指定できる。現在の provider
 （Antigravity CLI）で、`ai.model: fable` のような値は
 `claude --print --model fable`、`ai.provider: agy` の場合は
 `agy --print --model "<model>"` として渡される。
+`ai.fallback_models` を指定すると、primary model の CLI 実行が失敗した場合に
+同じ provider で後続モデルを順番に試す。運用時だけ差し替えたい場合は
+`OWLCLAW_AI_FALLBACK_MODELS=opus,sonnet` のようにカンマ区切りで上書きできる。
 
 動画スライドの本文表現は `video.visual_mode` で切り替える。
 `imagegen` は従来どおり `concept` + Codex imagegen でPNG化し、`ppt` は
