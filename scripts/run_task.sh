@@ -23,6 +23,9 @@ if [[ -z "$TASK_ID" ]]; then
 fi
 
 echo "=== owlclaw: run_task $TASK_ID ==="
+# SSH/launchd の最小 PATH でも ~/.local/bin や Homebrew の CLI を見つけられるようにする
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 # NVM node bin を PATH に追加（SSH/launchd 非インタラクティブ対策）
 NVM_NODE_BIN="$(
   find "$HOME/.nvm/versions/node" -mindepth 2 -maxdepth 2 -type d -name bin -print \

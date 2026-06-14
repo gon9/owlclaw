@@ -46,3 +46,36 @@ def test_run_task_allows_missing_nvm_and_forwards_extra_args(tmp_path: Path) -> 
         "--simulate-date",
         "2026-05-30",
     ]
+
+
+def test_run_task_adds_local_bin_to_path(tmp_path: Path) -> None:
+    """非対話環境でも ~/.local/bin のCLIを見つけられるPATHにする。"""
+    home = tmp_path / "home"
+    home.mkdir()
+    captured_path = tmp_path / "path.txt"
+    uv_stub = tmp_path / "uv"
+    uv_stub.write_text(
+        '#!/usr/bin/env bash\nprintf "%s\\n" "$PATH" > "$CAPTURED_PATH"\n',
+        encoding="utf-8",
+    )
+    uv_stub.chmod(0o755)
+    env = {
+        **os.environ,
+        "HOME": str(home),
+        "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+        "UV": str(uv_stub),
+        "CAPTURED_PATH": str(captured_path),
+    }
+
+    result = subprocess.run(
+        ["bash", str(RUN_TASK), "daily-digest"],
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 0
+    assert captured_path.read_text(encoding="utf-8").strip().startswith(
+        f"{home}/.local/bin:/opt/homebrew/bin:/usr/local/bin:"
+    )
