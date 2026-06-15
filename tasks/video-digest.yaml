@@ -19,7 +19,7 @@ outputs:
     drive_upload: true            # Google Drive API にアップロード + 共有リンク取得
     drive_folder: "owlclaw/video-digest"  # Drive 上の保存先 (階層 OK)
     youtube_upload: true          # YouTube にアップロード (Google Home 再生用)
-    youtube_privacy: public       # public / unlisted / private
+    youtube_privacy: unlisted     # public / unlisted / private
     # obsidian_subdir は廃止: Drive API があれば冗長で Obsidian Vault が汚れるため。
     # 復活したければ obsidian_subdir: "owlclaw/video" を追加 (Vault 内に同期コピーされる)
     retention_days: 7             # 古いローカル動画は N 日経過で自動削除
