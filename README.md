@@ -94,23 +94,34 @@ echo "https://hooks.slack.com/services/YOUR/WEBHOOK/URL" > secrets/slack_webhook
 2. **OAuth 2.0 クライアント ID**（デスクトップ アプリ）を作成して `secrets/calendar_oauth.json` として保存
 
 ```bash
-uv run python scripts/auth_calendar.py
+uv run python scripts/auth_calendar.py --login-hint atsushi.tmail@gmail.com
 ```
 
 承認すると `secrets/calendar_token.json` が生成される。
+
+### Google OAuth 運用ルール
+
+`owlclaw` の Google / GCP 運用は `atsushi.tmail@gmail.com` と
+GCP project `ai-agent-gon9a` に統一する。
+
+- `calendar_oauth.json` / `drive_oauth.json` / `gmail_oauth.json` / `youtube_oauth.json`
+  は同じ `ai-agent-gon9a` の desktop OAuth client を使う
+- Drive / Calendar / Gmail / YouTube の token は `atsushi.tmail@gmail.com` で発行する
+- YouTube のアップロード先は `atsushi.tmail@gmail.com` の個人チャンネル `@GON9878`
+- 初回または検証時の YouTube 公開設定は `youtube_privacy: unlisted` を使う
+- token 本体は表示しない。状態確認は `uv run python scripts/doctor_google_auth.py` を使う
 
 ### 5. Gmail OAuth 設定（payment-watch / travel-watch を使う場合）
 
 #### 5-1. GCP でクレデンシャル作成
 
 1. [GCP コンソール](https://console.cloud.google.com/) → **API とサービス** → **ライブラリ** → **Gmail API** を有効化
-2. **認証情報** → **+ 認証情報を作成** → **OAuth 2.0 クライアント ID** → **デスクトップ アプリ**
-3. JSON をダウンロードして `secrets/gmail_oauth.json` として保存
+2. Drive/Calendar/YouTube と同じ OAuth client JSON を `secrets/gmail_oauth.json` として保存
 
 #### 5-2. 初回 OAuth フロー（ブラウザ認証）
 
 ```bash
-uv run python scripts/auth_gmail.py
+uv run python scripts/auth_gmail.py --login-hint atsushi.tmail@gmail.com
 ```
 
 ブラウザが開き、Google アカウントでの許可画面が表示される。
@@ -122,7 +133,7 @@ uv run python scripts/auth_gmail.py
 2. **認証情報** → Drive/Calendar と同じ **OAuth 2.0 クライアント ID** の JSON をダウンロードして `secrets/youtube_oauth.json` として保存（既存の `drive_oauth.json` と同一ファイルのコピーで OK）
 
 ```bash
-uv run python scripts/auth_youtube.py
+uv run python scripts/auth_youtube.py --login-hint atsushi.tmail@gmail.com
 ```
 
 ブラウザが開き、YouTube upload 権限の許可画面が表示される。

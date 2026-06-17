@@ -38,6 +38,22 @@ def main() -> None:
         action="store_true",
         help="ブラウザを自動起動せず、認証URLを標準出力に表示する",
     )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=0,
+        help="OAuth callback 用 localhost port。0 なら空きポートを自動選択",
+    )
+    parser.add_argument(
+        "--login-hint",
+        default=None,
+        help="Google 認証画面に渡す login_hint",
+    )
+    parser.add_argument(
+        "--prompt",
+        default="select_account",
+        help="Google 認証画面の prompt パラメータ (default: select_account)",
+    )
     args = parser.parse_args()
 
     if not CREDS_PATH.exists():
@@ -50,10 +66,14 @@ def main() -> None:
     from google_auth_oauthlib.flow import InstalledAppFlow
 
     flow = InstalledAppFlow.from_client_secrets_file(str(CREDS_PATH), SCOPES)
+    auth_kwargs = {"prompt": args.prompt}
+    if args.login_hint:
+        auth_kwargs["login_hint"] = args.login_hint
     creds = flow.run_local_server(
-        port=0,
+        port=args.port,
         open_browser=not args.no_browser,
         authorization_prompt_message="認証URLをブラウザで開いてください:\n{url}\n",
+        **auth_kwargs,
     )
 
     TOKEN_PATH.write_text(creds.to_json(), encoding="utf-8")
