@@ -1,0 +1,8 @@
+# VOICEVOX に渡す前に置換する読み辞書。
+# キーはナレーションに出る表記、値は読み上げ用の日本語表記。
+terms:
+  Anthropic: アンソロピック
+  Anthoropic: アンソロピック
+  Obsidian: オブシディアン
+  OWLCLAW: アウルクロウ
+  Salesforce: セールスフォース

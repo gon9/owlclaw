@@ -25,14 +25,29 @@ def _load_render_audio():
 def test_normalize_pronunciation_replaces_known_names_case_insensitively() -> None:
     render_audio = _load_render_audio()
 
+    replacements = render_audio.load_pronunciation_replacements()
+    assert replacements["salesforce"] == "セールスフォース"
+
     normalized = render_audio.normalize_pronunciation(
-        "Anthropicの発表とanthoropic、OWLCLAWニュース、Obsidianで確認。"
+        "Anthropicの発表とanthoropic、Salesforce連携、OWLCLAWニュース、Obsidianで確認。"
     )
 
     assert normalized == (
         "アンソロピックの発表とアンソロピック、"
+        "セールスフォース連携、"
         "アウルクロウニュース、オブシディアンで確認。"
     )
+
+
+def test_find_unregistered_latin_terms_ignores_known_terms_and_acronyms() -> None:
+    render_audio = _load_render_audio()
+
+    terms = render_audio.find_unregistered_latin_terms(
+        "Salesforce と Databricks と API と GPT を比較する。",
+        render_audio.load_pronunciation_replacements(),
+    )
+
+    assert terms == ["Databricks"]
 
 
 def test_render_audio_synthesizes_normalized_narration(tmp_path: Path, monkeypatch) -> None:
@@ -76,7 +91,7 @@ def test_render_audio_synthesizes_normalized_narration(tmp_path: Path, monkeypat
                 id="seg2",
                 type="closing",
                 image_prompt="A closing scene",
-                narration="OWLCLAW でした。詳細は Obsidian で。",
+                narration="OWLCLAW でした。Salesforce と Obsidian で確認できます。",
             ),
         ],
     )
@@ -85,6 +100,6 @@ def test_render_audio_synthesizes_normalized_narration(tmp_path: Path, monkeypat
 
     assert captured == [
         "アンソロピック のニュースです。",
-        "アウルクロウ でした。詳細は オブシディアン で。",
+        "アウルクロウ でした。セールスフォース と オブシディアン で確認できます。",
     ]
     assert wavs == [tmp_path / "seg1.wav", tmp_path / "seg2.wav"]
